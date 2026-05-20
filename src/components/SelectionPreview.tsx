@@ -1,6 +1,6 @@
 import "./SelectionPreview.css";
 
-/** Max preview length before the long-selection badge appears (M6). */
+/** Max selection length before the "…and N more characters" badge appears. */
 export const LONG_SELECTION_THRESHOLD = 2000;
 /** Max characters shown inline in the preview. */
 const INLINE_LIMIT = 240;

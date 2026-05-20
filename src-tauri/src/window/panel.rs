@@ -16,9 +16,8 @@ const PANEL_LABEL: &str = "panel";
 const CURSOR_OFFSET_X: i32 = 8;
 const CURSOR_OFFSET_Y: i32 = 12;
 
-/// Clamp a panel placement to a monitor's bounds. Pure function — exposed for
-/// tests. M6 adds edge-flip logic in `compute_position`; this stays a simple
-/// last-resort clamp.
+/// Clamp a panel placement to a monitor's bounds. Last-resort guard that
+/// `compute_position` falls back to after attempting edge-flip.
 pub fn clamp_to_monitor(
     pos: (i32, i32),
     monitor_size: (i32, i32),

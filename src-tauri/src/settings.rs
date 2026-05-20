@@ -86,21 +86,14 @@ mod tests {
     use crate::commands::settings::AppSettings;
 
     #[test]
-    fn defaults_have_no_keys_and_default_actions_enabled() {
+    fn defaults_have_no_keys() {
+        // serde `default = "..."` only fires on *missing* fields, not on a
+        // raw `Default::default()`. The seeding behavior lives at the
+        // deserialize boundary — see `defaults_for_missing_fields_serve_as_seed`.
         let s = AppSettings::default();
         assert_eq!(s.fireworks_key, None);
         assert_eq!(s.openrouter_key, None);
         assert!(!s.onboarding_complete);
-        // `enabled_actions` defaults are seeded by serde from the
-        // `default_enabled_actions` function in commands/settings.rs.
-        // A raw `Default::default()` won't trigger serde defaults, so for
-        // this test we round-trip via JSON to exercise the real path.
-        let raw = serde_json::to_string(&s).expect("serialize");
-        let back: AppSettings = serde_json::from_str(&raw).expect("deserialize");
-        // After round-trip, an empty Vec stays empty (we only seed defaults
-        // on missing fields). That's a known quirk; the seeding is for users
-        // upgrading from older settings, not for `Default::default()`.
-        assert_eq!(back.fireworks_key, None);
     }
 
     #[test]

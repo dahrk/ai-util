@@ -16,10 +16,9 @@
 //!
 //! ## HTTP/2
 //!
-//! `init_client` enables HTTP/2 via ALPN (the `http2_prior_knowledge`
-//! optimization is intentionally OFF — at the time of writing Fireworks's
-//! TLS terminator was sensitive to it). Revisit in M6 if it helps latency
-//! on the first byte.
+//! `init_client` enables HTTP/2 via ALPN. The `http2_prior_knowledge`
+//! optimization is intentionally OFF — Fireworks's TLS terminator was
+//! sensitive to it at the time of writing.
 
 use std::sync::Arc;
 use std::time::Duration;

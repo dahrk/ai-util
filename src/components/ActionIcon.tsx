@@ -6,7 +6,7 @@ interface Props {
   size?: number;
 }
 
-/** Map an `Action` to its lucide icon. Centralized so M5 settings can mirror. */
+/** Map an `Action` to its lucide icon — shared between the picker and Settings. */
 export function ActionIcon({ action, size = 14 }: Props) {
   switch (action) {
     case "summarize":

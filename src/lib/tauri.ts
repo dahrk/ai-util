@@ -1,6 +1,5 @@
-// Typed wrappers around Tauri commands. One source of truth for IPC.
-//
-// Build this out as the corresponding Rust commands come online (Phase 2, 5, 6, 8, 9).
+// Typed wrappers around Tauri commands and events — the single source of
+// truth for the IPC boundary.
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";

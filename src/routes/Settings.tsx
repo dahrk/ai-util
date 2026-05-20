@@ -1,9 +1,6 @@
-// Settings window. Sections per the design contract:
-//   - Hotkey (HotkeyRecorder)
-//   - API keys (ApiKeyInput per provider)
-//   - Default models (text input prefilled)
-//   - Actions: enable/disable, plus per-action prompt override + restore default
-//   - Per the design comment: "Each action needs a default prompt + override + restore"
+// Settings window. Hotkey, API keys, default model per provider, enable
+// /disable per action, and per-action prompt override (`{text}`
+// interpolation) with "Restore default" to clear an override.
 
 import { useCallback, useEffect, useState } from "react";
 import { RotateCcw } from "lucide-react";
@@ -11,6 +8,7 @@ import { RotateCcw } from "lucide-react";
 import { ActionIcon } from "../components/ActionIcon";
 import { ApiKeyInput } from "../components/ApiKeyInput";
 import { HotkeyRecorder } from "../components/HotkeyRecorder";
+import { defaultModelId } from "../lib/models";
 import {
   getSettings,
   setApiKey,
@@ -21,9 +19,6 @@ import {
 } from "../lib/tauri";
 import { ACTIONS, ACTION_META, type Action, type AppSettings } from "../lib/types";
 import "./Settings.css";
-
-const DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct";
-const DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct";
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -82,12 +77,12 @@ export default function Settings() {
       <Section title="Default models" hint="Per-provider model used unless overridden.">
         <ModelField
           label="Fireworks"
-          value={settings.fireworks_model ?? DEFAULT_FIREWORKS_MODEL}
+          value={settings.fireworks_model ?? defaultModelId("fireworks")}
           onSave={async (m) => applied(await setModel("fireworks", m))}
         />
         <ModelField
           label="OpenRouter"
-          value={settings.openrouter_model ?? DEFAULT_OPENROUTER_MODEL}
+          value={settings.openrouter_model ?? defaultModelId("openrouter")}
           onSave={async (m) => applied(await setModel("openrouter", m))}
         />
       </Section>

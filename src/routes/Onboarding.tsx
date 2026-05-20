@@ -1,13 +1,6 @@
-// First-run window. Walks the user through:
-//   1. Welcome + macOS Accessibility permission
-//   2. Fireworks API key (REQUIRED)
-//   3. OpenRouter API key (optional — Skip allowed)
-//   4. Default model selection per provider
-//
-// Per the design-bundle teammate comments:
-//   - "Technically only 1 is required" → step 3 is explicitly skippable
-//   - "Need a Select default model step with one chosen already" → step 4
-//     pre-selects the provider default
+// First-run onboarding window: A11y permission → Fireworks key (required)
+// → OpenRouter key (skippable) → default model selection. Step 3 is
+// skippable because only one provider key is required.
 
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -16,6 +9,7 @@ import { ArrowRight, Check, Shield, Sparkles } from "lucide-react";
 import { ApiKeyInput } from "../components/ApiKeyInput";
 import { ProviderIndicator } from "../components/ProviderIndicator";
 import { ShortcutChip } from "../components/ShortcutChip";
+import { defaultModelId, PROVIDER_MODELS } from "../lib/models";
 import {
   completeOnboarding,
   getSettings,
@@ -33,18 +27,6 @@ const A11Y_URL =
 
 const FIREWORKS_DOC = "https://fireworks.ai/account/api-keys";
 const OPENROUTER_DOC = "https://openrouter.ai/keys";
-
-const FIREWORKS_MODELS = [
-  { id: "accounts/fireworks/models/llama-v3p1-8b-instruct", label: "Llama 3.1 8B Instruct (fast)" },
-  { id: "accounts/fireworks/models/llama-v3p1-70b-instruct", label: "Llama 3.1 70B Instruct (quality)" },
-  { id: "accounts/fireworks/models/mixtral-8x7b-instruct", label: "Mixtral 8x7B Instruct" },
-];
-
-const OPENROUTER_MODELS = [
-  { id: "meta-llama/llama-3.1-8b-instruct", label: "Llama 3.1 8B Instruct (fast)" },
-  { id: "meta-llama/llama-3.1-70b-instruct", label: "Llama 3.1 70B Instruct (quality)" },
-  { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5" },
-];
 
 export default function Onboarding() {
   const [step, setStep] = useState<Step>(1);
@@ -288,10 +270,10 @@ function StepDefaultModels({
   onFinish: () => void;
 }) {
   const [fireworksModel, setFireworksModel] = useState(
-    settings.fireworks_model ?? FIREWORKS_MODELS[0].id,
+    settings.fireworks_model ?? defaultModelId("fireworks"),
   );
   const [openrouterModel, setOpenrouterModel] = useState(
-    settings.openrouter_model ?? OPENROUTER_MODELS[0].id,
+    settings.openrouter_model ?? defaultModelId("openrouter"),
   );
 
   const finish = useCallback(async () => {
@@ -317,7 +299,7 @@ function StepDefaultModels({
           <ProviderIndicator provider="fireworks" />
         </div>
         <ModelSelector
-          options={FIREWORKS_MODELS}
+          options={PROVIDER_MODELS.fireworks}
           value={fireworksModel}
           onChange={setFireworksModel}
           testIdPrefix="fireworks-model"
@@ -330,7 +312,7 @@ function StepDefaultModels({
             <ProviderIndicator provider="openrouter" />
           </div>
           <ModelSelector
-            options={OPENROUTER_MODELS}
+            options={PROVIDER_MODELS.openrouter}
             value={openrouterModel}
             onChange={setOpenrouterModel}
             testIdPrefix="openrouter-model"

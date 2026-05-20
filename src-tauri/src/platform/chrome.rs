@@ -11,7 +11,6 @@ pub trait WindowChrome {
     /// after the window exists but before its first `show()`.
     fn convert_to_panel(&self, window: &WebviewWindow) -> tauri::Result<()>;
 
-    /// Apply background vibrancy / blur. No-op on platforms without it.
-    /// Implementations may be no-ops until M6.
+    /// Apply background vibrancy / blur. No-op on platforms without native support.
     fn apply_vibrancy(&self, window: &WebviewWindow) -> tauri::Result<()>;
 }

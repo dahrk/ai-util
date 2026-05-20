@@ -7,7 +7,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Default)]
 pub struct AppState {
-    /// Most recent captured selection. Populated by the hotkey handler in M2.
+    /// Most recent captured selection, populated by the hotkey handler.
     pub last_selection: Mutex<Option<String>>,
 
     /// In-flight completion's cancel token. Replaced on every new run; cleared
