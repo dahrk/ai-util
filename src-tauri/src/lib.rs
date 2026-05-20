@@ -13,6 +13,43 @@ mod settings;
 mod state;
 mod window;
 
+/// Re-exports for the integration test suite (`tests/live_providers.rs`).
+/// Not part of the public app surface; keep this module thin.
+#[doc(hidden)]
+pub mod __test_support {
+    pub use crate::llm::gateway::{
+        client, init_client, run_completion, switch_sink, token_sink, TokenSink,
+    };
+    pub use crate::llm::prompts::{build_messages, Action};
+    pub use crate::llm::providers::{Provider, ProviderConfig};
+
+    /// Initialize the global HTTP client (idempotent). Integration tests must
+    /// call this before invoking `run_completion`.
+    pub fn init_client_for_tests() {
+        // `init_client` reads no app state, but takes an `AppHandle` for the
+        // production signature. The integration tests don't have one, so use
+        // a direct initializer that bypasses the wrapper.
+        use once_cell::sync::OnceCell;
+        use reqwest::Client;
+        use std::time::Duration;
+
+        static SHIM: OnceCell<()> = OnceCell::new();
+        SHIM.get_or_init(|| {
+            // Try the public init via a do-nothing AppHandle, fallback to direct
+            // builder. In practice for tests, `client()` calls `unwrap()` so we
+            // need *some* successful initialization; the gateway's static is
+            // `pub(crate)` so we initialize through the helper that *does* exist.
+            let _ = Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .pool_idle_timeout(None)
+                .build()
+                .expect("client");
+        });
+        // Direct entry point lives in gateway.rs.
+        crate::llm::gateway::__init_client_for_tests();
+    }
+}
+
 use tauri::Manager;
 use tracing_subscriber::{fmt, EnvFilter};
 

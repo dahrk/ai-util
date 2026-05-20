@@ -1,45 +1,45 @@
 // The floating panel root.
 //
 // Subscribes to the state machine and renders the appropriate sub-view.
-// Sub-views land per milestone:
-//   M1: empty placeholder.
-//   M2: ActionPicker, EmptySelection, PermissionPrompt.
-//   M3: StreamingView.
-//   M4: ResultView, ErrorView.
-//
-// All Tauri event listeners are registered HERE (mount-time) so that streaming
-// events emitted by the Rust gateway never arrive at a not-yet-mounted child.
+// **All Tauri event listeners are registered here at mount,** so that
+// streaming events emitted by the Rust gateway never arrive at a
+// not-yet-mounted child (listeners-before-invokes contract).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { usePanelStore } from "../lib/store";
 import {
   hidePanel,
+  onCompletionDone,
+  onCompletionError,
+  onCompletionToken,
   onPermissionRequired,
+  onProviderSwitched,
   onSelectionCaptured,
+  runCompletion,
 } from "../lib/tauri";
-import type { Action } from "../lib/types";
+import type { Action, Provider } from "../lib/types";
 
 import { ActionPicker } from "../components/ActionPicker";
 import { PermissionPrompt } from "../components/PermissionPrompt";
+import { StreamingView } from "../components/StreamingView";
 
 const A11Y_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 
-export default function Panel() {
-  const { state, setSelection } = usePanelStore();
-  const [needsPermission, setNeedsPermission] = useState(false);
-
-  // Selection event subscription — clears the permission prompt if present.
+/** Small helper for registering a listener inside a `useEffect` with cancel safety. */
+function useTauriEvent<T>(
+  subscribe: ((cb: T) => Promise<() => void>) | null,
+  cb: T,
+  deps: unknown[],
+) {
   useEffect(() => {
+    if (!subscribe) return;
     let unlistenFn: (() => void) | undefined;
     let cancelled = false;
-    void onSelectionCaptured((sel) => {
-      setNeedsPermission(false);
-      setSelection(sel);
-    }).then((fn) => {
+    void subscribe(cb).then((fn) => {
       if (cancelled) fn();
       else unlistenFn = fn;
     });
@@ -47,21 +47,60 @@ export default function Panel() {
       cancelled = true;
       unlistenFn?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
+export default function Panel() {
+  const {
+    state,
+    setSelection,
+    startAction,
+    appendToken,
+    switchProvider,
+    completeResult,
+    fail,
+    back,
+  } = usePanelStore();
+
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  // Selection event subscription.
+  useTauriEvent(onSelectionCaptured, (sel) => {
+    setNeedsPermission(false);
+    setSelection(sel);
   }, [setSelection]);
 
   // Permission-required subscription.
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-    let cancelled = false;
-    void onPermissionRequired(() => setNeedsPermission(true)).then((fn) => {
-      if (cancelled) fn();
-      else unlistenFn = fn;
-    });
-    return () => {
-      cancelled = true;
-      unlistenFn?.();
-    };
-  }, []);
+  useTauriEvent(onPermissionRequired, () => setNeedsPermission(true), []);
+
+  // Completion event listeners — registered ONCE at mount, before any
+  // `runCompletion` invocation, so the first token never beats the listener.
+  useTauriEvent(onCompletionToken, (token) => appendToken(token), [appendToken]);
+  useTauriEvent(
+    onProviderSwitched,
+    (_from, to) => {
+      const next: Provider = to.toLowerCase() === "openrouter" ? "openrouter" : "fireworks";
+      switchProvider(next);
+      // Surface the "switching…" status briefly so the user sees the change.
+      setSwitching(true);
+      window.setTimeout(() => setSwitching(false), 900);
+    },
+    [switchProvider],
+  );
+  useTauriEvent(onCompletionDone, (text) => {
+    setSwitching(false);
+    completeResult(text);
+  }, [completeResult]);
+  useTauriEvent(
+    onCompletionError,
+    (err) => {
+      setSwitching(false);
+      fail(err);
+    },
+    [fail],
+  );
 
   // Dismiss on Esc.
   useEffect(() => {
@@ -91,12 +130,31 @@ export default function Panel() {
     };
   }, []);
 
-  const handlePick = useCallback((action: Action) => {
-    // M3 will dispatch startAction + runCompletion here.
-    // M2 logs and is otherwise a no-op so the picker is testable.
-    // eslint-disable-next-line no-console
-    console.log("action picked:", action);
-  }, []);
+  // Track in-flight action so accidental double-invokes are no-ops.
+  const inFlight = useRef(false);
+  const handlePick = useCallback(
+    (action: Action) => {
+      if (state.kind !== "picking") return;
+      if (inFlight.current) return;
+
+      // Offline preflight (M4 contract; we do it here so the gateway never
+      // sees the request).
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        fail({
+          fireworks_error: "You appear to be offline.",
+          openrouter_error: null,
+        });
+        return;
+      }
+
+      inFlight.current = true;
+      startAction(action, "fireworks");
+      void runCompletion(action, state.selection.text).finally(() => {
+        inFlight.current = false;
+      });
+    },
+    [state, startAction, fail],
+  );
 
   const openA11y = useCallback(() => {
     void openUrl(A11Y_URL);
@@ -118,6 +176,15 @@ export default function Panel() {
       {state.kind === "picking" && (
         <ActionPicker selection={state.selection} onPick={handlePick} />
       )}
+      {state.kind === "streaming" && (
+        <StreamingView
+          action={state.action}
+          tokens={state.tokens}
+          provider={state.provider}
+          switching={switching}
+          onBack={back}
+        />
+      )}
       {state.kind === "idle" && (
         <div style={{ padding: "var(--panel-padding)" }}>
           <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
@@ -125,7 +192,6 @@ export default function Panel() {
           </p>
         </div>
       )}
-      {/* M3: streaming view */}
       {/* M4: result + error views */}
     </div>
   );

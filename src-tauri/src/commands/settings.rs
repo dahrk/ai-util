@@ -1,7 +1,7 @@
 //! M3 / M5: settings persistence + management commands.
 //!
 //! Schema lives here so multiple modules can share it. Real load/save logic
-//! lands in M3 via `crate::settings`.
+//! is in `crate::settings`.
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -44,13 +44,13 @@ pub async fn get_settings(app: AppHandle) -> Result<AppSettings, String> {
 }
 
 #[tauri::command]
-pub async fn set_api_key(app: AppHandle, provider: String, key: String) -> Result<(), String> {
-    crate::settings::mutate(&app, |s| {
-        let value = if key.is_empty() {
-            None
-        } else {
-            Some(key.clone())
-        };
+pub async fn set_api_key(
+    app: AppHandle,
+    provider: String,
+    key: String,
+) -> Result<AppSettings, String> {
+    crate::settings::mutate(&app, move |s| {
+        let value = if key.is_empty() { None } else { Some(key) };
         match provider.as_str() {
             "fireworks" => s.fireworks_key = value,
             "openrouter" => s.openrouter_key = value,
@@ -68,13 +68,13 @@ pub async fn set_hotkey(_app: AppHandle, _shortcut: String) -> Result<(), String
 }
 
 #[tauri::command]
-pub async fn set_model(app: AppHandle, provider: String, model: String) -> Result<(), String> {
-    crate::settings::mutate(&app, |s| {
-        let value = if model.is_empty() {
-            None
-        } else {
-            Some(model.clone())
-        };
+pub async fn set_model(
+    app: AppHandle,
+    provider: String,
+    model: String,
+) -> Result<AppSettings, String> {
+    crate::settings::mutate(&app, move |s| {
+        let value = if model.is_empty() { None } else { Some(model) };
         match provider.as_str() {
             "fireworks" => s.fireworks_model = value,
             "openrouter" => s.openrouter_model = value,
