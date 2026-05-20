@@ -100,17 +100,18 @@ pnpm typecheck && pnpm lint && pnpm test:run \
 
 ## Milestone status
 
-- [x] **M1** — Foundation, platform abstraction, empty floating panel · `88c4312`
+- [x] **M1** — Foundation, platform abstraction, empty floating panel · `1b16b94`
   - Quality gates: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` (8 tests pass), `pnpm typecheck`, `pnpm lint`, `pnpm test:run` (1 test passes)
   - Manual smoke pending from user (hotkey under 150ms, no focus steal, fullscreen float)
-- [x] **M2** — Selection capture + ActionPicker UI · `6ab167d`
+- [x] **M2** — Selection capture + ActionPicker UI · `b98bc53`
   - Quality gates: cargo (11 tests), vitest (27 tests), all lints clean
-- [x] **M3** — LLM gateway + streaming · `44db91e`
+- [x] **M3** — LLM gateway + streaming · `e730f89`
   - Quality gates: 36 cargo unit + 2 #[ignore]d live integration tests, 34 vitest tests, all lints clean
   - Listeners-before-invokes contract live in `Panel.tsx`
-- [x] **M4** — Result view + paste-back + extensible error registry · `836c152`
+- [x] **M4** — Result view + paste-back + extensible error registry · `60e33f9`
   - 36 cargo + 59 vitest tests; error states driven by `src/lib/errorKinds.ts` registry
-- [x] **M5** — Onboarding + Settings + tray + live rebind · `82f31dd`
+- [x] **M5** — Onboarding + Settings + tray + live rebind · `67a8379`
   - 36 cargo + 81 vitest tests; addresses all 3 teammate comments from the design hand-off
-- [x] **M6** — Snappiness + polish · `fb2d134`
+- [x] **M6** — Snappiness + polish · `d233c74`
   - 39 cargo + 88 vitest tests; vibrancy + edge-flip + telemetry overlay (`Cmd+Shift+;`)
+- _Post-M6 simplify pass (`b9ea133` `232b855` `e698a6b` `e911ec8`): net −172 lines of code with all 40 cargo + 88 vitest tests still green._
