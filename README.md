@@ -142,3 +142,7 @@ Not yet done; in rough priority order:
 - System-keychain (`keyring`) storage for API keys (replaces plaintext JSON).
 - Custom user-defined actions.
 - See `IMPLEMENTATION_PLAN.md` § "What's out of scope for v1" for the broader list.
+
+## License
+
+[MIT](LICENSE).
