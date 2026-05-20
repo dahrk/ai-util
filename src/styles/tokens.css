@@ -1,0 +1,136 @@
+/**
+ * Design tokens for AI Text Actions
+ *
+ * Visual system drawn from `design-reference/project/panel.jsx`:
+ *   - macOS Sonoma vibrancy — heavy backdrop-blur + saturate, 0.5px hairlines
+ *   - 14px panel radius, soft drop shadow
+ *   - SF Pro Text system stack, 13px body / 11px meta / 13.5px result
+ *   - Warm amber accent oklch(0.78 0.15 65) ≈ #f5a04f — used sparingly:
+ *     focused row, primary CTA, streaming caret, action button on hover
+ *   - System grays everywhere else; the only saturated color is in error states
+ *
+ * Light + dark variants both ship; controlled by prefers-color-scheme.
+ */
+
+:root {
+  /* ── Color (light) ─────────────────────────────────────── */
+  --color-bg-top: rgba(252, 252, 253, 0.82);
+  --color-bg-bottom: rgba(240, 240, 243, 0.78);
+  --color-bg-solid: #ffffff;
+  --color-surface: rgba(0, 0, 0, 0.025);
+  --color-surface-strong: rgba(0, 0, 0, 0.04);
+  --color-border: rgba(0, 0, 0, 0.10);
+  --color-border-hairline: rgba(0, 0, 0, 0.07);
+  --color-divider: rgba(0, 0, 0, 0.07);
+
+  --color-text: rgba(0, 0, 0, 0.86);
+  --color-text-muted: rgba(0, 0, 0, 0.52);
+  --color-text-subtle: rgba(0, 0, 0, 0.35);
+
+  /* Warm amber accent — the only consistent saturated color */
+  --color-accent: #f5a04f;
+  --color-accent-hover: #e9933e;
+  --color-accent-soft: rgba(245, 160, 79, 0.14);
+  --color-accent-soft-strong: rgba(245, 160, 79, 0.20);
+  --color-accent-fg: #ffffff;
+
+  --color-caret: var(--color-accent);
+
+  --color-success: #34c759;
+  --color-warning: #f5a04f;
+  --color-danger: #ff5e5e;
+
+  /* ── Spacing ───────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-8: 28px;
+
+  /* ── Radius ────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-panel: 14px;
+
+  /* ── Typography ────────────────────────────────────────── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+               "Helvetica Neue", "Segoe UI Variable Display", "Segoe UI",
+               system-ui, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-xxs: 10.5px;
+  --text-xs: 11px;
+  --text-sm: 11.5px;
+  --text-md: 12px;
+  --text-base: 13px;
+  --text-result: 13.5px;
+  --text-lg: 15px;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.42;
+  --leading-relaxed: 1.55;
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --motion-fast: 140ms;        /* state transition crossfade */
+  --motion-base: 180ms;        /* panel appear */
+  --motion-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-panel:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 24px 60px -12px rgba(0, 0, 0, 0.22),
+    0 0 0 0.5px rgba(0, 0, 0, 0.05);
+
+  /* ── Panel dimensions (mirror tauri.conf.json) ─────────── */
+  --panel-width: 380px;
+  --panel-padding: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-top: rgba(46, 46, 52, 0.78);
+    --color-bg-bottom: rgba(30, 30, 34, 0.78);
+    --color-bg-solid: #1c1c1e;
+    --color-surface: rgba(255, 255, 255, 0.04);
+    --color-surface-strong: rgba(255, 255, 255, 0.06);
+    --color-border: rgba(255, 255, 255, 0.12);
+    --color-border-hairline: rgba(255, 255, 255, 0.08);
+    --color-divider: rgba(255, 255, 255, 0.08);
+
+    --color-text: rgba(255, 255, 255, 0.94);
+    --color-text-muted: rgba(255, 255, 255, 0.55);
+    --color-text-subtle: rgba(255, 255, 255, 0.35);
+
+    --color-accent-soft: rgba(245, 160, 79, 0.16);
+    --color-accent-soft-strong: rgba(245, 160, 79, 0.22);
+
+    --shadow-panel:
+      0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+      0 24px 60px -10px rgba(0, 0, 0, 0.65),
+      0 0 0 0.5px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+}
+
+/* Base reset for the panel root */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

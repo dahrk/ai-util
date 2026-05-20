@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Local API keys (DO NOT COMMIT)
+src-tauri/.tauri-dev/
+
+# rustfmt backup
+**/*.rs.bk
