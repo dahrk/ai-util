@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Copy, RotateCcw, Settings as Cog } from "lucide-react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
@@ -69,13 +69,20 @@ export function ResultView({
   const [copied, setCopied] = useState(false);
   const [replaced, setReplaced] = useState(false);
 
-  const refusal = isRefusal(result);
+  const refusal = useMemo(() => isRefusal(result), [result]);
 
   const handleCopy = useCallback(async () => {
     await writeText(result);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
   }, [result]);
+
+  // Auto-clear the "Copied" confirmation after 1.5s. Wrapped in an effect so
+  // the timeout is canceled if the panel unmounts mid-fade.
+  useEffect(() => {
+    if (!copied) return;
+    const id = window.setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(id);
+  }, [copied]);
 
   const handleReplace = useCallback(async () => {
     if (nonEditable) {

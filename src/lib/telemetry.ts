@@ -108,18 +108,12 @@ export function subscribe(
       onSample(next.sample, buf);
     }
   };
-  void listen<number>("telemetry_hotkey_received", (e) => handle("hotkey")(e.payload)).then((fn) =>
-    unlisteners.push(fn),
-  );
-  void listen<number>("telemetry_panel_visible", (e) => handle("visible")(e.payload)).then((fn) =>
-    unlisteners.push(fn),
-  );
-  void listen<number>("telemetry_first_token", (e) => handle("first_token")(e.payload)).then(
-    (fn) => unlisteners.push(fn),
-  );
-  void listen<number>("telemetry_completion_done", (e) => handle("done")(e.payload)).then((fn) =>
-    unlisteners.push(fn),
-  );
+  void Promise.all([
+    listen<number>("telemetry_hotkey_received", (e) => handle("hotkey")(e.payload)),
+    listen<number>("telemetry_panel_visible", (e) => handle("visible")(e.payload)),
+    listen<number>("telemetry_first_token", (e) => handle("first_token")(e.payload)),
+    listen<number>("telemetry_completion_done", (e) => handle("done")(e.payload)),
+  ]).then((fns) => unlisteners.push(...fns));
 
   return () => unlisteners.forEach((u) => u());
 }

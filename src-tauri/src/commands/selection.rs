@@ -1,10 +1,13 @@
-//! M2: `get_selection` — capture currently selected text from the focused app.
-//! M4: `paste_back` — hide panel, write result to clipboard, synthesize Cmd+V.
+//! `get_selection` — capture currently selected text from the focused app.
+//! `paste_back` — hide panel, write result to clipboard, synthesize Cmd+V.
+
+use std::time::Duration;
 
 use serde::Serialize;
-use std::time::Duration;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+
+use crate::util::PANEL_LABEL;
 
 #[derive(Serialize, Debug, Clone, Default)]
 pub struct Selection {
@@ -36,14 +39,23 @@ pub async fn paste_back(app: AppHandle, text: String) -> Result<(), String> {
     use crate::platform::paster::Paster;
     use crate::platform::PLATFORM;
 
-    // 1. Hide the panel so focus returns to the source app.
-    if let Err(e) = crate::window::panel::hide_panel(&app) {
-        tracing::warn!("paste_back: hide_panel failed: {e}");
-    }
+    // 1. Hide the panel so focus returns to the source app. Only sleep
+    //    when the panel actually was visible — otherwise the 40ms is a
+    //    pure tax (e.g., if a future caller invokes paste_back without
+    //    showing the panel first).
+    let panel_was_visible = app
+        .get_webview_window(PANEL_LABEL)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(true);
 
-    // Small settle delay: macOS needs a tick to actually transfer focus back
-    // before our synthesized Cmd+V will go to the right window.
-    tokio::time::sleep(Duration::from_millis(40)).await;
+    if panel_was_visible {
+        if let Err(e) = crate::window::panel::hide_panel(&app) {
+            tracing::warn!("paste_back: hide_panel failed: {e}");
+        }
+        // Settle delay: macOS needs a tick to transfer focus back to the
+        // source app before our synthesized Cmd+V is delivered to it.
+        tokio::time::sleep(Duration::from_millis(40)).await;
+    }
 
     let clipboard = app.clipboard();
     let previous = clipboard.read_text().ok();

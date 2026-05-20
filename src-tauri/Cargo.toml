@@ -54,16 +54,12 @@ parking_lot = "0.12"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # NSPanel conversion / cursor / vibrancy. We use the classic objc + cocoa
-# crates because their macros are stable and a wide reference base exists.
-# objc2 is also pulled in (for future use; one or the other can be removed
-# once the implementation settles).
+# macros because the reference base is wide and they're stable. window-vibrancy
+# brings in objc2 transitively when it needs it.
 objc = "0.2"
 objc-foundation = "0.1"
 cocoa = "0.26"
 core-graphics = "0.24"
-objc2 = "0.5"
-objc2-app-kit = { version = "0.2", features = ["NSPanel", "NSWindow"] }
-objc2-foundation = "0.2"
 
 [dev-dependencies]
 wiremock = "0.6"
