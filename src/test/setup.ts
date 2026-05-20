@@ -25,3 +25,13 @@ vi.mock("@tauri-apps/api/window", () => ({
     close: vi.fn(async () => undefined),
   }),
 }));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(async () => undefined),
+  openPath: vi.fn(async () => undefined),
+}));
+
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
+  readText: vi.fn(async () => ""),
+  writeText: vi.fn(async () => undefined),
+}));

@@ -28,9 +28,11 @@ export const getSettings = (): Promise<AppSettings> =>
 
 // ── Events ──────────────────────────────────────────────────
 
-export const onSelectionCaptured = (
-  cb: (s: Selection) => void
-): Promise<UnlistenFn> => listen<Selection>("selection_captured", (e) => cb(e.payload));
+export const onSelectionCaptured = (cb: (s: Selection) => void): Promise<UnlistenFn> =>
+  listen<Selection>("selection_captured", (e) => cb(e.payload));
+
+export const onPermissionRequired = (cb: () => void): Promise<UnlistenFn> =>
+  listen<unknown>("permission_required", () => cb());
 
 export const onCompletionToken = (
   cb: (token: string) => void

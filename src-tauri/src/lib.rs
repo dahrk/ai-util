@@ -8,6 +8,7 @@ mod commands;
 mod hotkey;
 mod llm;
 mod platform;
+mod selection;
 mod settings;
 mod state;
 mod window;

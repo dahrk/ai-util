@@ -1,0 +1,24 @@
+.provider-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xxs);
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.provider-indicator__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.provider-indicator[data-status="switching"] .provider-indicator__dot {
+  background: var(--color-accent);
+}
+
+.provider-indicator[data-status="error"] .provider-indicator__dot {
+  background: var(--color-danger);
+}

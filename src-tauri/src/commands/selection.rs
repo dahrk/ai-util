@@ -1,34 +1,36 @@
-//! Phase 2: get_selection — capture currently selected text from the focused app.
-//! Phase 6: paste_back — hide panel, write result to clipboard, synthesize Cmd+V.
-//!
-//! Both use the `get-selected-text` crate's hybrid A11y / clipboard strategy.
+//! M2: `get_selection` — capture currently selected text from the focused app.
+//! M4: `paste_back` — hide panel, write result to clipboard, synthesize Cmd+V.
 
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone, Default)]
 pub struct Selection {
     pub text: String,
     pub source_app: Option<String>,
 }
 
+/// Errors that the frontend can act on. We don't return `Err` for empty
+/// selections (that's a valid state); only return `Err` when something the
+/// user should fix happened (e.g. A11y permission revoked).
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum SelectionError {
+    PermissionDenied,
+    Other { message: String },
+}
+
 #[tauri::command]
-pub async fn get_selection() -> Result<Selection, String> {
-    // TODO Phase 2:
-    //   - call get_selected_text::get_selected_text()
-    //   - on error, return empty Selection rather than erroring
-    //   - capture source app name (focused process) when available
-    todo!("Phase 2")
+pub async fn get_selection() -> Result<Selection, SelectionError> {
+    crate::selection::capture()
 }
 
 #[tauri::command]
 pub async fn paste_back(_text: String) -> Result<(), String> {
-    // TODO Phase 6:
-    //   - hide panel first (so focus returns to source app)
-    //   - save current clipboard
-    //   - write `text` to clipboard
-    //   - sleep 30ms
-    //   - synthesize Cmd+V / Ctrl+V via crate::input
-    //   - sleep 150ms
-    //   - restore original clipboard
-    todo!("Phase 6")
+    // M4: implementation.
+    //   1. crate::window::panel::hide_panel(&app)
+    //   2. save clipboard via tauri-plugin-clipboard-manager
+    //   3. write `text` to clipboard
+    //   4. crate::platform::PLATFORM.synthesize_paste()
+    //   5. restore clipboard (log-don't-fail on error)
+    Err("paste_back: implemented in M4".into())
 }

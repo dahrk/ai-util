@@ -100,7 +100,7 @@ pnpm typecheck && pnpm lint && pnpm test:run \
 
 ## Milestone status
 
-- [x] **M1** — Foundation, platform abstraction, empty floating panel
+- [x] **M1** — Foundation, platform abstraction, empty floating panel · `88c4312`
   - Quality gates: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` (8 tests pass), `pnpm typecheck`, `pnpm lint`, `pnpm test:run` (1 test passes)
   - Manual smoke pending from user (hotkey under 150ms, no focus steal, fullscreen float)
 - [ ] **M2** — Selection capture + ActionPicker UI
