@@ -1,0 +1,123 @@
+.error-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.error-view__header-icon {
+  display: inline-flex;
+}
+
+.error-view__header-icon[data-tone="red"] {
+  color: var(--color-danger);
+}
+
+.error-view__header-icon[data-tone="amber"] {
+  color: var(--color-accent);
+}
+
+.error-view__body {
+  padding: 12px 14px 12px;
+}
+
+.error-view__title {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.error-view__log {
+  background: var(--color-surface);
+  border: 0.5px solid var(--color-divider);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.error-view__row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.error-view__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  flex-shrink: 0;
+}
+
+.error-view__dot[data-tone="amber"] {
+  background: var(--color-accent);
+}
+
+.error-view__provider {
+  font-weight: 500;
+}
+
+.error-view__detail {
+  color: var(--color-text-subtle);
+}
+
+.error-view__hint {
+  margin-top: 10px;
+  font-size: var(--text-sm);
+  color: var(--color-text-subtle);
+  line-height: 1.5;
+}
+
+.error-view__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-top: 0.5px solid var(--color-divider);
+  background: rgba(0, 0, 0, 0.015);
+  gap: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-view__footer {
+    background: rgba(0, 0, 0, 0.12);
+  }
+}
+
+.error-view__secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text-subtle);
+}
+
+.error-view__secondary:hover {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+.error-view__primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
+    0 1px 2px 0 rgba(0, 0, 0, 0.15);
+}
+
+.error-view__primary:hover {
+  background: var(--color-accent-hover);
+}

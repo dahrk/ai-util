@@ -23,7 +23,9 @@ import {
 import type { Action, Provider } from "../lib/types";
 
 import { ActionPicker } from "../components/ActionPicker";
+import { ErrorView } from "../components/ErrorView";
 import { PermissionPrompt } from "../components/PermissionPrompt";
+import { ResultView } from "../components/ResultView";
 import { StreamingView } from "../components/StreamingView";
 
 const A11Y_URL =
@@ -61,6 +63,7 @@ export default function Panel() {
     completeResult,
     fail,
     back,
+    retry,
   } = usePanelStore();
 
   const [needsPermission, setNeedsPermission] = useState(false);
@@ -185,6 +188,36 @@ export default function Panel() {
           onBack={back}
         />
       )}
+      {state.kind === "result" && (
+        <ResultView
+          action={state.action}
+          result={state.result}
+          selection={state.selection}
+          onRetry={() => {
+            retry();
+            void runCompletion(state.action, state.selection.text);
+          }}
+          onBack={back}
+          onDismiss={() => void hidePanel()}
+        />
+      )}
+      {state.kind === "error" && (
+        <ErrorView
+          error={state.error}
+          onRetry={() => {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              return; // Stay in error if still offline.
+            }
+            if (state.action && state.selection) {
+              retry();
+              void runCompletion(state.action, state.selection.text);
+            } else {
+              back();
+            }
+          }}
+          onDismiss={() => void hidePanel()}
+        />
+      )}
       {state.kind === "idle" && (
         <div style={{ padding: "var(--panel-padding)" }}>
           <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
@@ -192,7 +225,6 @@ export default function Panel() {
           </p>
         </div>
       )}
-      {/* M4: result + error views */}
     </div>
   );
 }

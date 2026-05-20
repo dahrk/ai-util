@@ -105,7 +105,9 @@ pnpm typecheck && pnpm lint && pnpm test:run \
   - Manual smoke pending from user (hotkey under 150ms, no focus steal, fullscreen float)
 - [x] **M2** — Selection capture + ActionPicker UI · `6ab167d`
   - Quality gates: cargo (11 tests), vitest (27 tests), all lints clean
-- [ ] **M3** — LLM gateway + streaming
+- [x] **M3** — LLM gateway + streaming · `44db91e`
+  - Quality gates: 36 cargo unit + 2 #[ignore]d live integration tests, 34 vitest tests, all lints clean
+  - Listeners-before-invokes contract live in `Panel.tsx`
 - [ ] **M4** — Result view + paste-back + error + offline
 - [ ] **M5** — Onboarding + Settings + tray + live rebind
 - [ ] **M6** — Snappiness + polish

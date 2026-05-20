@@ -1,0 +1,128 @@
+.result-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-view__back-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-subtle);
+  padding: 0;
+  border-radius: 4px;
+}
+
+.result-view__back-icon:hover {
+  color: var(--color-text-muted);
+  background: var(--color-surface-strong);
+}
+
+.result-view__body {
+  padding: 12px 14px 8px;
+}
+
+.result-view__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.result-view__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-subtle);
+  font-size: var(--text-xxs);
+  font-weight: 500;
+  padding: 0;
+}
+
+.result-view__toggle:hover {
+  color: var(--color-text-muted);
+}
+
+.result-view__refusal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  color: #d49b3e;
+  background: var(--color-accent-soft);
+  border: 0.5px solid var(--color-accent-soft-strong);
+}
+
+.result-view__original {
+  margin-bottom: 10px;
+}
+
+.result-view__text {
+  font-size: var(--text-result);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text);
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.result-view__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-top: 0.5px solid var(--color-divider);
+  background: rgba(0, 0, 0, 0.015);
+  gap: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .result-view__footer {
+    background: rgba(0, 0, 0, 0.12);
+  }
+}
+
+.result-view__secondary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.result-view__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text-subtle);
+}
+
+.result-view__btn:hover {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+.result-view__primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
+    0 1px 2px 0 rgba(0, 0, 0, 0.15);
+}
+
+.result-view__primary:hover {
+  background: var(--color-accent-hover);
+}
