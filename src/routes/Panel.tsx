@@ -27,6 +27,7 @@ import { ErrorView } from "../components/ErrorView";
 import { PermissionPrompt } from "../components/PermissionPrompt";
 import { ResultView } from "../components/ResultView";
 import { StreamingView } from "../components/StreamingView";
+import { TelemetryOverlay } from "../components/TelemetryOverlay";
 
 const A11Y_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
@@ -225,6 +226,7 @@ export default function Panel() {
           </p>
         </div>
       )}
+      <TelemetryOverlay />
     </div>
   );
 }

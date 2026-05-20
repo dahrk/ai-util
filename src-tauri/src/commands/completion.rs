@@ -104,7 +104,13 @@ pub async fn run_completion(
     let app_for_token = app.clone();
     let app_for_switch = app.clone();
 
+    let first_token_emitted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let first = first_token_emitted.clone();
+    let app_for_first_token = app.clone();
     let on_token: TokenSink = gateway::token_sink(move |tok| {
+        if !first.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            let _ = app_for_first_token.emit_to(PANEL_LABEL, "telemetry_first_token", now_ms());
+        }
         let _ = app_for_token.emit_to(
             PANEL_LABEL,
             "completion_token",
@@ -138,6 +144,7 @@ pub async fn run_completion(
 
         match result {
             Ok(text) => {
+                let _ = app_for_task.emit_to(PANEL_LABEL, "telemetry_completion_done", now_ms());
                 let _ = app_for_task.emit_to(PANEL_LABEL, "completion_done", DonePayload { text });
             }
             Err(GatewayError::Cancelled) => {
@@ -174,6 +181,14 @@ pub async fn cancel_completion(app: AppHandle) -> Result<(), String> {
         token.cancel();
     }
     Ok(())
+}
+
+fn now_ms() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
 
 #[derive(Serialize, Clone)]

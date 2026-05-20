@@ -110,5 +110,6 @@ pnpm typecheck && pnpm lint && pnpm test:run \
   - Listeners-before-invokes contract live in `Panel.tsx`
 - [x] **M4** — Result view + paste-back + extensible error registry · `836c152`
   - 36 cargo + 59 vitest tests; error states driven by `src/lib/errorKinds.ts` registry
-- [ ] **M5** — Onboarding + Settings + tray + live rebind
+- [x] **M5** — Onboarding + Settings + tray + live rebind · `82f31dd`
+  - 36 cargo + 81 vitest tests; addresses all 3 teammate comments from the design hand-off
 - [ ] **M6** — Snappiness + polish

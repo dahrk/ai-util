@@ -76,9 +76,13 @@ impl WindowChrome for PlatformImpl {
         Ok(())
     }
 
-    fn apply_vibrancy(&self, _window: &WebviewWindow) -> tauri::Result<()> {
-        // No-op until M6. The trait surface is locked now so call sites in
-        // lib.rs's setup() don't have to be touched later.
+    fn apply_vibrancy(&self, window: &WebviewWindow) -> tauri::Result<()> {
+        use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+
+        if let Err(e) = apply_vibrancy(window, NSVisualEffectMaterial::HudWindow, None, Some(14.0))
+        {
+            tracing::warn!("apply_vibrancy failed: {e}");
+        }
         Ok(())
     }
 }

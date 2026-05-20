@@ -1,0 +1,52 @@
+.telemetry-overlay {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.telemetry-overlay__row {
+  display: flex;
+  gap: 10px;
+}
+
+.telemetry-overlay__stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.telemetry-overlay__stat.is-over .telemetry-overlay__value {
+  color: var(--color-accent);
+}
+
+.telemetry-overlay__label {
+  opacity: 0.7;
+}
+
+.telemetry-overlay__value {
+  font-weight: 500;
+}
+
+.telemetry-overlay__history {
+  display: flex;
+  gap: 2px;
+}
+
+.telemetry-overlay__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}

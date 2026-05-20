@@ -53,6 +53,8 @@ fn register(app: &AppHandle, shortcut: Shortcut) -> tauri::Result<()> {
 }
 
 fn on_hotkey(app: AppHandle) {
+    let _ = app.emit_to(PANEL_LABEL, "telemetry_hotkey_received", now_ms());
+
     if let Some(window) = app.get_webview_window(PANEL_LABEL) {
         match window.is_visible() {
             Ok(true) => {
@@ -95,5 +97,14 @@ fn on_hotkey(app: AppHandle) {
         if let Err(e) = crate::window::panel::show_panel(&app) {
             tracing::warn!("show_panel failed: {e}");
         }
+        let _ = app.emit_to(PANEL_LABEL, "telemetry_panel_visible", now_ms());
     });
+}
+
+fn now_ms() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
