@@ -112,4 +112,5 @@ pnpm typecheck && pnpm lint && pnpm test:run \
   - 36 cargo + 59 vitest tests; error states driven by `src/lib/errorKinds.ts` registry
 - [x] **M5** — Onboarding + Settings + tray + live rebind · `82f31dd`
   - 36 cargo + 81 vitest tests; addresses all 3 teammate comments from the design hand-off
-- [ ] **M6** — Snappiness + polish
+- [x] **M6** — Snappiness + polish · `fb2d134`
+  - 39 cargo + 88 vitest tests; vibrancy + edge-flip + telemetry overlay (`Cmd+Shift+;`)
