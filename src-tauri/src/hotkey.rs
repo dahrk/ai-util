@@ -1,7 +1,8 @@
 //! Global hotkey registration.
 //!
 //! Default: `Cmd+Shift+Space` on macOS, `Ctrl+Shift+Space` on Windows.
-//! Configurable via the settings store; reregistered live in M5.
+//! Configurable via the settings store; reregistered live via
+//! `commands::settings::set_hotkey`.
 
 use std::str::FromStr;
 
@@ -10,16 +11,12 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 use crate::commands::selection::SelectionError;
 use crate::state::AppState;
-
-pub const DEFAULT_SHORTCUT: &str = "CommandOrControl+Shift+Space";
-
-const PANEL_LABEL: &str = "panel";
+use crate::util::{now_ms, PANEL_LABEL};
 
 fn default_shortcut() -> Shortcut {
     Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space)
 }
 
-/// Register the default global shortcut.
 pub fn register_default(app: &App) -> tauri::Result<()> {
     register(app.handle(), default_shortcut())
 }
@@ -99,12 +96,4 @@ fn on_hotkey(app: AppHandle) {
         }
         let _ = app.emit_to(PANEL_LABEL, "telemetry_panel_visible", now_ms());
     });
-}
-
-fn now_ms() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
 }

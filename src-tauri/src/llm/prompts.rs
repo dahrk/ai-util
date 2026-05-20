@@ -4,10 +4,11 @@
 //! preamble ("Sure! Here's your summary:") and that would end up pasted into
 //! the user's document. Be strict.
 //!
-//! M5 layers user-supplied per-action prompt overrides via
-//! `build_messages_with_override` (see `DESIGN_NOTES.md` — "default prompt +
-//! override + restore"). Passing `None` for the override returns the built-in
-//! default, so call sites that don't yet read settings keep working.
+//! `build_messages_with_override` lets settings supply a user-message
+//! template; `{text}` is interpolated. Empty/whitespace overrides fall back
+//! to the built-in default so settings doesn't need to know the defaults.
+
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,13 @@ pub enum Action {
 }
 
 impl Action {
+    pub const ALL: [Action; 4] = [
+        Action::Summarize,
+        Action::Edit,
+        Action::Elaborate,
+        Action::Research,
+    ];
+
     /// Lowercase identifier matching the frontend's `Action` type and the
     /// settings store's prompts map key.
     pub fn as_key(&self) -> &'static str {
@@ -29,6 +37,20 @@ impl Action {
             Action::Edit => "edit",
             Action::Elaborate => "elaborate",
             Action::Research => "research",
+        }
+    }
+}
+
+impl FromStr for Action {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "summarize" => Ok(Action::Summarize),
+            "edit" => Ok(Action::Edit),
+            "elaborate" => Ok(Action::Elaborate),
+            "research" => Ok(Action::Research),
+            other => Err(format!("unknown action: {other}")),
         }
     }
 }
@@ -95,7 +117,6 @@ mod tests {
 
     #[test]
     fn shared_system_warns_against_preamble() {
-        // Sanity check: the strict "output ONLY" framing is present.
         assert!(SHARED_SYSTEM.contains("output ONLY"));
     }
 
@@ -110,12 +131,7 @@ mod tests {
     #[test]
     fn each_action_embeds_the_selection_text() {
         let needle = "marker-string-fc4e";
-        for action in [
-            Action::Summarize,
-            Action::Edit,
-            Action::Elaborate,
-            Action::Research,
-        ] {
+        for action in Action::ALL {
             let msgs = build_messages(action, needle);
             assert!(
                 msgs[1].content.contains(needle),
@@ -154,5 +170,13 @@ mod tests {
         assert_eq!(Action::Edit.as_key(), "edit");
         assert_eq!(Action::Elaborate.as_key(), "elaborate");
         assert_eq!(Action::Research.as_key(), "research");
+    }
+
+    #[test]
+    fn from_str_parses_each_action() {
+        for action in Action::ALL {
+            assert_eq!(Action::from_str(action.as_key()).unwrap(), action);
+        }
+        assert!(Action::from_str("invalid").is_err());
     }
 }

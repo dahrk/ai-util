@@ -1,10 +1,11 @@
-//! M3 / M5: settings persistence + management commands.
+//! Settings persistence + management commands.
 
-use std::time::Duration;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
+use crate::llm::prompts::Action;
 use crate::llm::providers::Provider;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
@@ -23,12 +24,7 @@ pub struct AppSettings {
 }
 
 fn default_enabled_actions() -> Vec<String> {
-    vec![
-        "summarize".into(),
-        "edit".into(),
-        "elaborate".into(),
-        "research".into(),
-    ]
+    Action::ALL.iter().map(|a| a.as_key().to_string()).collect()
 }
 
 #[tauri::command]
@@ -95,12 +91,7 @@ pub async fn set_prompt_override(
     prompt: Option<String>,
 ) -> Result<AppSettings, String> {
     crate::settings::mutate(&app, move |s| {
-        if !matches!(
-            action.as_str(),
-            "summarize" | "edit" | "elaborate" | "research"
-        ) {
-            return Err(format!("unknown action: {action}"));
-        }
+        Action::from_str(&action)?;
         match prompt {
             Some(p) if !p.trim().is_empty() => {
                 s.prompts.insert(action, p);
@@ -122,9 +113,7 @@ pub async fn set_enabled_actions(
 ) -> Result<AppSettings, String> {
     crate::settings::mutate(&app, move |s| {
         for a in &actions {
-            if !matches!(a.as_str(), "summarize" | "edit" | "elaborate" | "research") {
-                return Err(format!("unknown action: {a}"));
-            }
+            Action::from_str(a)?;
         }
         s.enabled_actions = actions;
         Ok(())
@@ -185,13 +174,7 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<Validatio
         "temperature": 0.0,
     });
 
-    let client = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("client build: {e}"))?;
-
-    let res = client
+    let res = crate::llm::gateway::client()
         .post(url)
         .bearer_auth(&key)
         .header("HTTP-Referer", "https://github.com/anthropics/claude-code")

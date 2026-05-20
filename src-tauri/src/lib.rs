@@ -7,6 +7,7 @@ mod platform;
 mod selection;
 mod settings;
 mod state;
+mod util;
 mod window;
 
 #[doc(hidden)]

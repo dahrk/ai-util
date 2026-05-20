@@ -1,4 +1,4 @@
-//! M3: `run_completion` + `cancel_completion`.
+//! `run_completion` + `cancel_completion`.
 //!
 //! Resolves API keys from settings, builds prompts, spawns a task that calls
 //! into `crate::llm::gateway`, and emits events to the panel for each
@@ -10,7 +10,10 @@
 //!   - `completion_done`      `{ text: String }`
 //!   - `completion_error`     `{ fireworks_error?: String, openrouter_error?: String }`
 
-use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio_util::sync::CancellationToken;
 
@@ -18,28 +21,7 @@ use crate::llm::gateway::{self, GatewayError, TokenSink};
 use crate::llm::prompts::{self, Action};
 use crate::llm::providers::{Provider, ProviderConfig};
 use crate::state::AppState;
-
-const PANEL_LABEL: &str = "panel";
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum ActionInput {
-    Summarize,
-    Edit,
-    Elaborate,
-    Research,
-}
-
-impl From<ActionInput> for Action {
-    fn from(v: ActionInput) -> Self {
-        match v {
-            ActionInput::Summarize => Action::Summarize,
-            ActionInput::Edit => Action::Edit,
-            ActionInput::Elaborate => Action::Elaborate,
-            ActionInput::Research => Action::Research,
-        }
-    }
-}
+use crate::util::{now_ms, PANEL_LABEL};
 
 #[derive(Serialize, Clone, Debug)]
 pub struct CompletionErrorPayload {
@@ -48,12 +30,7 @@ pub struct CompletionErrorPayload {
 }
 
 #[tauri::command]
-pub async fn run_completion(
-    app: AppHandle,
-    action: ActionInput,
-    text: String,
-) -> Result<(), String> {
-    let action: Action = action.into();
+pub async fn run_completion(app: AppHandle, action: Action, text: String) -> Result<(), String> {
     let settings = crate::settings::load(&app)
         .await
         .map_err(|e| e.to_string())?;
@@ -100,16 +77,12 @@ pub async fn run_completion(
         *slot = Some(cancel.clone());
     }
 
-    let app_for_task = app.clone();
+    let first_token_emitted = Arc::new(AtomicBool::new(false));
     let app_for_token = app.clone();
-    let app_for_switch = app.clone();
-
-    let first_token_emitted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let first = first_token_emitted.clone();
-    let app_for_first_token = app.clone();
     let on_token: TokenSink = gateway::token_sink(move |tok| {
-        if !first.swap(true, std::sync::atomic::Ordering::SeqCst) {
-            let _ = app_for_first_token.emit_to(PANEL_LABEL, "telemetry_first_token", now_ms());
+        if !first.swap(true, Ordering::SeqCst) {
+            let _ = app_for_token.emit_to(PANEL_LABEL, "telemetry_first_token", now_ms());
         }
         let _ = app_for_token.emit_to(
             PANEL_LABEL,
@@ -119,6 +92,7 @@ pub async fn run_completion(
             },
         );
     });
+    let app_for_switch = app.clone();
     let on_switch = gateway::switch_sink(move |from, to| {
         let _ = app_for_switch.emit_to(
             PANEL_LABEL,
@@ -130,12 +104,12 @@ pub async fn run_completion(
         );
     });
 
+    let app_for_task = app.clone();
     tauri::async_runtime::spawn(async move {
         let result =
             gateway::run_completion(messages, fireworks, openrouter, on_token, on_switch, cancel)
                 .await;
 
-        // Clear our slot.
         {
             let state = app_for_task.state::<AppState>();
             let mut slot = state.cancel_token.lock();
@@ -181,14 +155,6 @@ pub async fn cancel_completion(app: AppHandle) -> Result<(), String> {
         token.cancel();
     }
     Ok(())
-}
-
-fn now_ms() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
 }
 
 #[derive(Serialize, Clone)]
