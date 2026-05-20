@@ -43,22 +43,6 @@
   animation: ai-caret-blink 1s steps(2) infinite;
 }
 
-.streaming-view__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-top: 0.5px solid var(--color-divider);
-  background: rgba(0, 0, 0, 0.015);
-  gap: 6px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .streaming-view__footer {
-    background: rgba(0, 0, 0, 0.12);
-  }
-}
-
 .streaming-view__status {
   display: inline-flex;
   align-items: center;
@@ -76,17 +60,4 @@
   border-top-color: transparent;
   border-radius: 50%;
   animation: ai-spin 0.7s linear infinite;
-}
-
-.streaming-view__cancel {
-  padding: 6px 9px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--color-text-subtle);
-}
-
-.streaming-view__cancel:hover {
-  background: var(--color-surface-strong);
-  color: var(--color-text);
 }

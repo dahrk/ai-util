@@ -1,14 +1,13 @@
-// The floating panel root.
-//
-// Subscribes to the state machine and renders the appropriate sub-view.
-// **All Tauri event listeners are registered here at mount,** so that
-// streaming events emitted by the Rust gateway never arrive at a
-// not-yet-mounted child (listeners-before-invokes contract).
+// Floating-panel route. All streaming-event listeners are registered here
+// once at mount — children read from the Zustand store. This keeps the
+// listeners-before-invokes contract intact: by the time `ActionPicker`
+// dispatches `runCompletion`, Panel is mounted and listening.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+import { useGlobalKeydown, useTauriEvent } from "../lib/hooks";
 import { usePanelStore } from "../lib/store";
 import {
   hidePanel,
@@ -32,27 +31,7 @@ import { TelemetryOverlay } from "../components/TelemetryOverlay";
 const A11Y_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 
-/** Small helper for registering a listener inside a `useEffect` with cancel safety. */
-function useTauriEvent<T>(
-  subscribe: ((cb: T) => Promise<() => void>) | null,
-  cb: T,
-  deps: unknown[],
-) {
-  useEffect(() => {
-    if (!subscribe) return;
-    let unlistenFn: (() => void) | undefined;
-    let cancelled = false;
-    void subscribe(cb).then((fn) => {
-      if (cancelled) fn();
-      else unlistenFn = fn;
-    });
-    return () => {
-      cancelled = true;
-      unlistenFn?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-}
+const SWITCHING_FADE_MS = 900;
 
 export default function Panel() {
   const {
@@ -70,33 +49,33 @@ export default function Panel() {
   const [needsPermission, setNeedsPermission] = useState(false);
   const [switching, setSwitching] = useState(false);
 
-  // Selection event subscription.
-  useTauriEvent(onSelectionCaptured, (sel) => {
-    setNeedsPermission(false);
-    setSelection(sel);
-  }, [setSelection]);
-
-  // Permission-required subscription.
+  useTauriEvent(
+    onSelectionCaptured,
+    (sel) => {
+      setNeedsPermission(false);
+      setSelection(sel);
+    },
+    [setSelection],
+  );
   useTauriEvent(onPermissionRequired, () => setNeedsPermission(true), []);
-
-  // Completion event listeners — registered ONCE at mount, before any
-  // `runCompletion` invocation, so the first token never beats the listener.
   useTauriEvent(onCompletionToken, (token) => appendToken(token), [appendToken]);
   useTauriEvent(
     onProviderSwitched,
     (_from, to) => {
       const next: Provider = to.toLowerCase() === "openrouter" ? "openrouter" : "fireworks";
       switchProvider(next);
-      // Surface the "switching…" status briefly so the user sees the change.
       setSwitching(true);
-      window.setTimeout(() => setSwitching(false), 900);
     },
     [switchProvider],
   );
-  useTauriEvent(onCompletionDone, (text) => {
-    setSwitching(false);
-    completeResult(text);
-  }, [completeResult]);
+  useTauriEvent(
+    onCompletionDone,
+    (text) => {
+      setSwitching(false);
+      completeResult(text);
+    },
+    [completeResult],
+  );
   useTauriEvent(
     onCompletionError,
     (err) => {
@@ -106,33 +85,23 @@ export default function Panel() {
     [fail],
   );
 
-  // Dismiss on Esc.
+  // Auto-clear the "switching…" banner after the crossfade. Effect-based so
+  // the timeout is canceled if the panel unmounts mid-fade.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") void hidePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    if (!switching) return;
+    const id = window.setTimeout(() => setSwitching(false), SWITCHING_FADE_MS);
+    return () => clearTimeout(id);
+  }, [switching]);
 
-  // Dismiss on window blur (click-outside).
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-    let cancelled = false;
-    const win = getCurrentWindow();
-    void win
-      .listen<unknown>("tauri://blur", () => {
-        void hidePanel();
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlistenFn = fn;
-      });
-    return () => {
-      cancelled = true;
-      unlistenFn?.();
-    };
-  }, []);
+  useGlobalKeydown({ Escape: () => void hidePanel() }, []);
+
+  // Dismiss on window blur (click-outside). Wired through useTauriEvent for
+  // the same cancel-safe cleanup pattern.
+  useTauriEvent(
+    (cb) => getCurrentWindow().listen<unknown>("tauri://blur", () => cb()),
+    () => void hidePanel(),
+    [],
+  );
 
   // Track in-flight action so accidental double-invokes are no-ops.
   const inFlight = useRef(false);
@@ -141,8 +110,6 @@ export default function Panel() {
       if (state.kind !== "picking") return;
       if (inFlight.current) return;
 
-      // Offline preflight (M4 contract; we do it here so the gateway never
-      // sees the request).
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         fail({
           fireworks_error: "You appear to be offline.",
@@ -160,9 +127,7 @@ export default function Panel() {
     [state, startAction, fail],
   );
 
-  const openA11y = useCallback(() => {
-    void openUrl(A11Y_URL);
-  }, []);
+  const openA11y = useCallback(() => void openUrl(A11Y_URL), []);
 
   if (needsPermission) {
     return (
@@ -207,7 +172,7 @@ export default function Panel() {
           error={state.error}
           onRetry={() => {
             if (typeof navigator !== "undefined" && navigator.onLine === false) {
-              return; // Stay in error if still offline.
+              return;
             }
             if (state.action && state.selection) {
               retry();

@@ -25,14 +25,14 @@ export function PermissionPrompt({ onOpenSettings, onDismiss }: Props) {
       <div className="permission-prompt__actions">
         <button
           type="button"
-          className="permission-prompt__secondary"
+          className="panel-btn"
           onClick={onDismiss}
         >
           Dismiss
         </button>
         <button
           type="button"
-          className="permission-prompt__primary"
+          className="panel-btn--primary"
           onClick={onOpenSettings}
         >
           Open System Settings

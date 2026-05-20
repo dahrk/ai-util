@@ -35,26 +35,3 @@
   justify-content: center;
 }
 
-.permission-prompt__secondary {
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  color: var(--color-text-muted);
-}
-
-.permission-prompt__secondary:hover {
-  background: var(--color-surface-strong);
-}
-
-.permission-prompt__primary {
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--color-accent-fg);
-  background: var(--color-accent);
-}
-
-.permission-prompt__primary:hover {
-  background: var(--color-accent-hover);
-}

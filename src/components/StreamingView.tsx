@@ -71,14 +71,14 @@ export function StreamingView({
         </div>
       </div>
 
-      <footer className="streaming-view__footer">
+      <footer className="panel-footer">
         <span className="streaming-view__status">
           <span className="streaming-view__spinner" aria-hidden="true" />
           {status}
         </span>
         <button
           type="button"
-          className="streaming-view__cancel"
+          className="panel-btn"
           onClick={handleCancel}
           data-testid="streaming-cancel"
         >

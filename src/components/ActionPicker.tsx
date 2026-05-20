@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Keyboard as KeyboardIcon } from "lucide-react";
 
+import { useGlobalKeydown } from "../lib/hooks";
 import type { Action, Selection } from "../lib/types";
 import { ACTIONS, ACTION_META } from "../lib/types";
 import { hidePanel } from "../lib/tauri";
@@ -35,33 +36,19 @@ export function ActionPicker({ selection, onPick, onOpenSettings }: Props) {
   // Empty-selection branch: treat whitespace-only as empty, per design brief.
   const isEmpty = !selection.text.trim();
 
-  // Keyboard handling — wired to window so it works regardless of focus inside.
-  useEffect(() => {
-    if (isEmpty) return;
-    const onKey = (e: KeyboardEvent) => {
-      // Number shortcuts 1-4
-      if (/^[1-4]$/.test(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        e.preventDefault();
-        onPick(ACTIONS[idx]);
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setFocused((f) => (f + 1) % ACTIONS.length);
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setFocused((f) => (f - 1 + ACTIONS.length) % ACTIONS.length);
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        onPick(ACTIONS[focused]);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [focused, isEmpty, onPick]);
+  useGlobalKeydown(
+    {
+      "1": () => onPick(ACTIONS[0]),
+      "2": () => onPick(ACTIONS[1]),
+      "3": () => onPick(ACTIONS[2]),
+      "4": () => onPick(ACTIONS[3]),
+      ArrowDown: () => setFocused((f) => (f + 1) % ACTIONS.length),
+      ArrowUp: () => setFocused((f) => (f - 1 + ACTIONS.length) % ACTIONS.length),
+      Enter: () => onPick(ACTIONS[focused]),
+    },
+    [focused, onPick],
+    { enabled: !isEmpty },
+  );
 
   const dismiss = useCallback(() => {
     void hidePanel();
@@ -99,14 +86,14 @@ export function ActionPicker({ selection, onPick, onOpenSettings }: Props) {
       </div>
 
       {!isEmpty && (
-        <footer className="action-picker__footer">
+        <footer className="panel-footer">
           <span className="action-picker__hint">
             <KeyboardIcon size={11} />
             Type 1–4 or ↑↓ Enter
           </span>
           <button
             type="button"
-            className="action-picker__esc"
+            className="panel-btn"
             onClick={dismiss}
             data-testid="dismiss-esc"
           >

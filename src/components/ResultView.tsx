@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ArrowLeft, Check, Copy, RotateCcw, Settings as Cog } from "lucide-react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
+import { useGlobalKeydown } from "../lib/hooks";
 import type { Action, Selection } from "../lib/types";
 import { pasteBack } from "../lib/tauri";
 
@@ -91,33 +92,30 @@ export function ResultView({
     }
   }, [handleCopy, nonEditable, result]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // Don't intercept typing if the user has focused a text input
-      // (none in v1, but be defensive for M5 settings reuse).
+  // Defensive: when text-input children exist (rare in v1), don't intercept.
+  // Bypass via the event target tag rather than disabling the hook globally.
+  const guardedCopy = useCallback(
+    (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      void handleCopy();
+    },
+    [handleCopy],
+  );
 
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void handleReplace();
-      } else if (e.key === "c" || e.key === "C") {
-        e.preventDefault();
-        void handleCopy();
-      } else if (e.key === "r" || e.key === "R") {
-        e.preventDefault();
-        onRetry();
-      } else if (e.key === "Backspace" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        onBack();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onDismiss();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [handleCopy, handleReplace, onRetry, onBack, onDismiss]);
+  useGlobalKeydown(
+    {
+      Enter: () => void handleReplace(),
+      c: guardedCopy,
+      C: guardedCopy,
+      r: () => onRetry(),
+      R: () => onRetry(),
+      Backspace: () => onBack(),
+      ArrowLeft: () => onBack(),
+      Escape: () => onDismiss(),
+    },
+    [handleReplace, guardedCopy, onRetry, onBack, onDismiss],
+  );
 
   return (
     <div className="result-view">
@@ -163,11 +161,11 @@ export function ResultView({
         </div>
       </div>
 
-      <footer className="result-view__footer">
+      <footer className="panel-footer">
         <div className="result-view__secondary">
           <button
             type="button"
-            className="result-view__btn"
+            className="panel-btn"
             onClick={onBack}
             aria-label="Back to actions"
           >
@@ -175,7 +173,7 @@ export function ResultView({
           </button>
           <button
             type="button"
-            className="result-view__btn"
+            className="panel-btn"
             onClick={() => void handleCopy()}
             data-testid="result-copy"
           >
@@ -184,7 +182,7 @@ export function ResultView({
           </button>
           <button
             type="button"
-            className="result-view__btn"
+            className="panel-btn"
             onClick={onRetry}
             data-testid="result-retry"
           >
@@ -193,7 +191,7 @@ export function ResultView({
           {onOpenSettings && (
             <button
               type="button"
-              className="result-view__btn"
+              className="panel-btn"
               onClick={onOpenSettings}
               aria-label="Open settings"
             >
@@ -203,7 +201,7 @@ export function ResultView({
         </div>
         <button
           type="button"
-          className="result-view__primary"
+          className="panel-btn--primary"
           onClick={() => void handleReplace()}
           data-testid="result-replace"
         >

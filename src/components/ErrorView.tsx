@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { AlertTriangle, RotateCcw, Sparkles, Settings as Cog } from "lucide-react";
 
+import { useGlobalKeydown } from "../lib/hooks";
 import type { CompletionError } from "../lib/types";
 import { buildLog, classify, ERROR_KINDS, type ErrorActionKind } from "../lib/errorKinds";
 
@@ -62,21 +62,13 @@ export function ErrorView({
     }
   };
 
-  // Keyboard: Enter = primary, Esc = dismiss.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        dispatch(def.primary.kind);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onDismiss();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [def.primary.kind, onDismiss]);
+  useGlobalKeydown(
+    {
+      Enter: () => dispatch(def.primary.kind),
+      Escape: () => onDismiss(),
+    },
+    [def.primary.kind, onDismiss],
+  );
 
   return (
     <div className="error-view" data-error-kind={key}>
@@ -108,10 +100,10 @@ export function ErrorView({
         <div className="error-view__hint">{def.hint}</div>
       </div>
 
-      <footer className="error-view__footer">
+      <footer className="panel-footer">
         <button
           type="button"
-          className="error-view__secondary"
+          className="panel-btn"
           onClick={() => dispatch(def.secondary.kind)}
           data-testid="error-secondary"
         >
@@ -120,7 +112,7 @@ export function ErrorView({
         </button>
         <button
           type="button"
-          className="error-view__primary"
+          className="panel-btn--primary"
           onClick={() => dispatch(def.primary.kind)}
           data-testid="error-primary"
         >

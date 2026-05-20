@@ -70,59 +70,8 @@
   word-break: break-word;
 }
 
-.result-view__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-top: 0.5px solid var(--color-divider);
-  background: rgba(0, 0, 0, 0.015);
-  gap: 6px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .result-view__footer {
-    background: rgba(0, 0, 0, 0.12);
-  }
-}
-
 .result-view__secondary {
   display: flex;
   align-items: center;
   gap: 2px;
-}
-
-.result-view__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 9px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--color-text-subtle);
-}
-
-.result-view__btn:hover {
-  background: var(--color-surface-strong);
-  color: var(--color-text);
-}
-
-.result-view__primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--color-accent-fg);
-  background: var(--color-accent);
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
-    0 1px 2px 0 rgba(0, 0, 0, 0.15);
-}
-
-.result-view__primary:hover {
-  background: var(--color-accent-hover);
 }
