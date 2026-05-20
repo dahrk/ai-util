@@ -26,6 +26,46 @@ export const hidePanel = (): Promise<void> =>
 export const getSettings = (): Promise<AppSettings> =>
   invoke("get_settings");
 
+export const setApiKey = (
+  provider: "fireworks" | "openrouter",
+  key: string,
+): Promise<AppSettings> => invoke("set_api_key", { provider, key });
+
+export const setHotkey = (shortcut: string): Promise<AppSettings> =>
+  invoke("set_hotkey", { shortcut });
+
+export const setModel = (
+  provider: "fireworks" | "openrouter",
+  model: string,
+): Promise<AppSettings> => invoke("set_model", { provider, model });
+
+export const setPromptOverride = (
+  action: string,
+  prompt: string | null,
+): Promise<AppSettings> => invoke("set_prompt_override", { action, prompt });
+
+export const setEnabledActions = (actions: string[]): Promise<AppSettings> =>
+  invoke("set_enabled_actions", { actions });
+
+export const completeOnboarding = (): Promise<AppSettings> =>
+  invoke("complete_onboarding");
+
+export interface ValidationResult {
+  ok: boolean;
+  status: number | null;
+  message: string | null;
+}
+
+export const validateApiKey = (
+  provider: "fireworks" | "openrouter",
+  key: string,
+): Promise<ValidationResult> => invoke("validate_api_key", { provider, key });
+
+export const probeAccessibility = (): Promise<boolean> =>
+  invoke("probe_accessibility");
+
+export const showPanel = (): Promise<void> => invoke("show_panel");
+
 // ── Events ──────────────────────────────────────────────────
 
 export const onSelectionCaptured = (cb: (s: Selection) => void): Promise<UnlistenFn> =>

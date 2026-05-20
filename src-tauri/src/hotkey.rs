@@ -3,13 +3,14 @@
 //! Default: `Cmd+Shift+Space` on macOS, `Ctrl+Shift+Space` on Windows.
 //! Configurable via the settings store; reregistered live in M5.
 
+use std::str::FromStr;
+
 use tauri::{App, AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use crate::commands::selection::SelectionError;
 use crate::state::AppState;
 
-/// The default global shortcut for v1.
 pub const DEFAULT_SHORTCUT: &str = "CommandOrControl+Shift+Space";
 
 const PANEL_LABEL: &str = "panel";
@@ -18,12 +19,26 @@ fn default_shortcut() -> Shortcut {
     Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space)
 }
 
-/// Register the default global shortcut. Returns `tauri::Result` so `setup()`
-/// can `?`-propagate; the plugin's own error type is mapped to a Tauri error.
+/// Register the default global shortcut.
 pub fn register_default(app: &App) -> tauri::Result<()> {
-    let shortcut = default_shortcut();
-    let handle = app.handle().clone();
+    register(app.handle(), default_shortcut())
+}
 
+/// Re-register the global shortcut to a new combo. Unregisters everything
+/// first so we don't double-fire.
+pub fn reregister(app: &AppHandle, shortcut: &str) -> tauri::Result<()> {
+    let parsed = Shortcut::from_str(shortcut)
+        .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("parse shortcut: {e}")))?;
+
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("unregister: {e}")))?;
+
+    register(app, parsed)
+}
+
+fn register(app: &AppHandle, shortcut: Shortcut) -> tauri::Result<()> {
+    let handle = app.clone();
     app.global_shortcut()
         .on_shortcut(shortcut, move |_app, _sc, event| {
             if event.state() != ShortcutState::Pressed {
@@ -33,13 +48,11 @@ pub fn register_default(app: &App) -> tauri::Result<()> {
         })
         .map_err(|e| tauri::Error::Anyhow(anyhow::anyhow!("global shortcut: {e}")))?;
 
-    tracing::info!("registered global shortcut: {DEFAULT_SHORTCUT}");
+    tracing::info!("registered global shortcut: {shortcut:?}");
     Ok(())
 }
 
 fn on_hotkey(app: AppHandle) {
-    // Toggle: if panel is visible, hide and return. Otherwise capture
-    // selection (off the UI thread), then show the panel.
     if let Some(window) = app.get_webview_window(PANEL_LABEL) {
         match window.is_visible() {
             Ok(true) => {
@@ -53,10 +66,6 @@ fn on_hotkey(app: AppHandle) {
         }
     }
 
-    // Selection capture and event emission run on the async runtime so the
-    // hotkey callback returns promptly. `get-selected-text` itself is
-    // synchronous and may take 5–50ms, which we don't want to do on the
-    // global-shortcut dispatcher.
     tauri::async_runtime::spawn(async move {
         let result = tokio::task::spawn_blocking(crate::selection::capture).await;
         match result {
@@ -87,11 +96,4 @@ fn on_hotkey(app: AppHandle) {
             tracing::warn!("show_panel failed: {e}");
         }
     });
-}
-
-/// Re-register the global shortcut. Implemented in M5 (settings rebind).
-pub fn reregister(_app: &AppHandle, _shortcut: &str) -> tauri::Result<()> {
-    Err(tauri::Error::Anyhow(anyhow::anyhow!(
-        "hotkey::reregister: implemented in M5"
-    )))
 }

@@ -1,0 +1,122 @@
+.api-key-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.api-key-input__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.api-key-input__help {
+  font-size: var(--text-xxs);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.api-key-input__help:hover {
+  text-decoration: underline;
+}
+
+.api-key-input__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.api-key-input__field {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--color-border-hairline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+}
+
+.api-key-input__field:focus {
+  outline: 1.5px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.api-key-input__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-subtle);
+  background: transparent;
+}
+
+.api-key-input__icon:hover {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+.api-key-input__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-md);
+}
+
+.api-key-input__validate,
+.api-key-input__save {
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text);
+  background: var(--color-surface-strong);
+  border: 0.5px solid var(--color-border-hairline);
+}
+
+.api-key-input__validate:hover:not(:disabled),
+.api-key-input__save:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+
+.api-key-input__save {
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  border-color: transparent;
+}
+
+.api-key-input__save:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.api-key-input__save:disabled,
+.api-key-input__validate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.api-key-input__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-success);
+}
+
+.api-key-input__err {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+}
+
+.api-key-input__ok em {
+  color: var(--color-text-subtle);
+  font-style: normal;
+  margin-left: 4px;
+}

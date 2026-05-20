@@ -1,10 +1,11 @@
 //! M3 / M5: settings persistence + management commands.
-//!
-//! Schema lives here so multiple modules can share it. Real load/save logic
-//! is in `crate::settings`.
+
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
+
+use crate::llm::providers::Provider;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
 pub struct AppSettings {
@@ -13,18 +14,10 @@ pub struct AppSettings {
     pub openrouter_key: Option<String>,
     pub fireworks_model: Option<String>,
     pub openrouter_model: Option<String>,
-
-    /// Optional per-action prompt overrides (M5). Keyed by lowercase action
-    /// name (`"summarize"` etc.). Absent = "use the built-in default from
-    /// `crate::llm::prompts`".
     #[serde(default)]
     pub prompts: std::collections::BTreeMap<String, String>,
-
-    /// Set of actions the user has enabled (M5). Order is preserved for the
-    /// picker list.
     #[serde(default = "default_enabled_actions")]
     pub enabled_actions: Vec<String>,
-
     #[serde(default)]
     pub onboarding_complete: bool,
 }
@@ -63,8 +56,17 @@ pub async fn set_api_key(
 }
 
 #[tauri::command]
-pub async fn set_hotkey(_app: AppHandle, _shortcut: String) -> Result<(), String> {
-    Err("set_hotkey: implemented in M5".into())
+pub async fn set_hotkey(app: AppHandle, shortcut: String) -> Result<AppSettings, String> {
+    let shortcut_for_store = shortcut.clone();
+    let settings = crate::settings::mutate(&app, move |s| {
+        s.hotkey = Some(shortcut_for_store);
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    crate::hotkey::reregister(&app, &shortcut).map_err(|e| e.to_string())?;
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -87,15 +89,145 @@ pub async fn set_model(
 }
 
 #[tauri::command]
-pub async fn complete_onboarding(_app: AppHandle) -> Result<(), String> {
-    Err("complete_onboarding: implemented in M5".into())
+pub async fn set_prompt_override(
+    app: AppHandle,
+    action: String,
+    prompt: Option<String>,
+) -> Result<AppSettings, String> {
+    crate::settings::mutate(&app, move |s| {
+        if !matches!(
+            action.as_str(),
+            "summarize" | "edit" | "elaborate" | "research"
+        ) {
+            return Err(format!("unknown action: {action}"));
+        }
+        match prompt {
+            Some(p) if !p.trim().is_empty() => {
+                s.prompts.insert(action, p);
+            }
+            _ => {
+                s.prompts.remove(&action);
+            }
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn validate_api_key(
-    _app: AppHandle,
-    _provider: String,
-    _key: String,
-) -> Result<(), String> {
-    Err("validate_api_key: implemented in M5".into())
+pub async fn set_enabled_actions(
+    app: AppHandle,
+    actions: Vec<String>,
+) -> Result<AppSettings, String> {
+    crate::settings::mutate(&app, move |s| {
+        for a in &actions {
+            if !matches!(a.as_str(), "summarize" | "edit" | "elaborate" | "research") {
+                return Err(format!("unknown action: {a}"));
+            }
+        }
+        s.enabled_actions = actions;
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn complete_onboarding(app: AppHandle) -> Result<AppSettings, String> {
+    let settings = crate::settings::mutate(&app, move |s| {
+        s.onboarding_complete = true;
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Close the onboarding window if present.
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("onboarding") {
+        let _ = win.close();
+    }
+    Ok(settings)
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ValidationResult {
+    pub ok: bool,
+    pub status: Option<u16>,
+    pub message: Option<String>,
+}
+
+/// Validate an API key by making a minimal completion request to the
+/// provider. The "tiny test request" pattern: 1-token max, deterministic.
+#[tauri::command]
+pub async fn validate_api_key(provider: String, key: String) -> Result<ValidationResult, String> {
+    let provider_kind = match provider.as_str() {
+        "fireworks" => Provider::Fireworks,
+        "openrouter" => Provider::OpenRouter,
+        other => return Err(format!("unknown provider: {other}")),
+    };
+
+    if key.trim().is_empty() {
+        return Ok(ValidationResult {
+            ok: false,
+            status: None,
+            message: Some("API key is empty".into()),
+        });
+    }
+
+    let url = provider_kind.url();
+    let model = provider_kind.default_model();
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": "ping"}],
+        "stream": false,
+        "max_tokens": 1,
+        "temperature": 0.0,
+    });
+
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("client build: {e}"))?;
+
+    let res = client
+        .post(url)
+        .bearer_auth(&key)
+        .header("HTTP-Referer", "https://github.com/anthropics/claude-code")
+        .header("X-Title", "AI Text Actions")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("network: {e}"))?;
+
+    let status = res.status();
+    if status.is_success() {
+        Ok(ValidationResult {
+            ok: true,
+            status: Some(status.as_u16()),
+            message: None,
+        })
+    } else {
+        let snippet: String = res
+            .text()
+            .await
+            .unwrap_or_default()
+            .chars()
+            .take(200)
+            .collect();
+        Ok(ValidationResult {
+            ok: false,
+            status: Some(status.as_u16()),
+            message: Some(snippet),
+        })
+    }
+}
+
+/// Probe the A11y permission by attempting a selection capture and inspecting
+/// the resulting error. Used by onboarding to advance once the user has
+/// granted access in System Settings.
+#[tauri::command]
+pub async fn probe_accessibility() -> Result<bool, String> {
+    Ok(crate::selection::has_accessibility())
 }

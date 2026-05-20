@@ -1,0 +1,25 @@
+.hotkey-recorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: var(--color-surface-strong);
+  border: 0.5px solid var(--color-border-hairline);
+  min-width: 96px;
+  justify-content: center;
+}
+
+.hotkey-recorder:hover {
+  background: var(--color-accent-soft);
+}
+
+.hotkey-recorder.is-recording {
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  border-color: transparent;
+}

@@ -108,6 +108,7 @@ pnpm typecheck && pnpm lint && pnpm test:run \
 - [x] **M3** — LLM gateway + streaming · `44db91e`
   - Quality gates: 36 cargo unit + 2 #[ignore]d live integration tests, 34 vitest tests, all lints clean
   - Listeners-before-invokes contract live in `Panel.tsx`
-- [ ] **M4** — Result view + paste-back + error + offline
+- [x] **M4** — Result view + paste-back + extensible error registry · `836c152`
+  - 36 cargo + 59 vitest tests; error states driven by `src/lib/errorKinds.ts` registry
 - [ ] **M5** — Onboarding + Settings + tray + live rebind
 - [ ] **M6** — Snappiness + polish

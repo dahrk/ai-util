@@ -19,6 +19,21 @@ const PERMISSION_PATTERNS: &[&str] = &[
     "kAXErrorAPIDisabled",
 ];
 
+/// Best-effort probe for the macOS Accessibility permission. Returns true if
+/// `get-selected-text` does not error out with a permission-related message.
+/// Used by the onboarding flow to advance once the user grants access.
+pub fn has_accessibility() -> bool {
+    match get_selected_text::get_selected_text() {
+        Ok(_) => true,
+        Err(e) => {
+            let msg = format!("{e}").to_ascii_lowercase();
+            !PERMISSION_PATTERNS
+                .iter()
+                .any(|p| msg.contains(&p.to_ascii_lowercase()))
+        }
+    }
+}
+
 pub fn capture() -> Result<Selection, SelectionError> {
     match get_selected_text::get_selected_text() {
         Ok(text) => Ok(Selection {
