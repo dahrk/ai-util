@@ -98,6 +98,11 @@ pnpm typecheck && pnpm lint && pnpm test:run \
 - `get-selected-text` may play the macOS alert beep when its clipboard fallback fires. See the crate's README for the documented workaround.
 - `macOSPrivateApi: true` in `tauri.conf.json` is required for the NSPanel conversion. Do not remove.
 
+## Known issues
+
+- **macOS 26 packaged build: panel chrome is disabled.** On macOS 26.2 (and likely later 26.x), the obj-c calls in `platform/macos/chrome.rs` (`convert_to_panel` and/or `apply_vibrancy`) throw an NSException at `applicationDidFinishLaunching:` under the hardened runtime that `tauri build` enables. The exception unwinds through tao's `extern "C"` delegate, hits `panic_cannot_unwind`, and aborts the process before any window appears. `pnpm tauri dev` is unaffected (no hardened runtime). As a workaround, `setup()` in `lib.rs` skips both calls — see the `FIXME(macos-26)` block. Trade-off: in packaged builds the panel steals focus on show and won't float over fullscreen apps. To properly fix, replace the `setClass: NSPanel` swizzle with a real `objc2` subclass of `NSPanel` overriding `canBecomeKeyWindow` etc., then re-enable.
+- **Fireworks model availability rotates.** A 404 with body `"... and/or not deployed"` from `validate_api_key` or completion means the model ID has been retired. Update `default_model()` in `src-tauri/src/llm/providers.rs` AND `PROVIDER_MODELS` in `src/lib/models.ts` (kept in sync) against `curl -s -H "Authorization: Bearer $KEY" https://api.fireworks.ai/inference/v1/models | jq '.data[].id'`.
+
 ## Milestone status
 
 - [x] **M1** — Foundation, platform abstraction, empty floating panel · `1b16b94`

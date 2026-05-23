@@ -28,9 +28,12 @@ impl Provider {
     }
 
     pub fn default_model(self) -> &'static str {
+        // Keep in sync with `src/lib/models.ts`. Fireworks rotates serverless
+        // model availability — verify with `GET /v1/models` if a 404 returns
+        // "model ... does not exist and/or not deployed".
         match self {
-            Provider::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
-            Provider::OpenRouter => "meta-llama/llama-3.1-8b-instruct",
+            Provider::Fireworks => "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            Provider::OpenRouter => "meta-llama/llama-3.3-70b-instruct",
         }
     }
 }

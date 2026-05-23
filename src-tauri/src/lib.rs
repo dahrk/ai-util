@@ -21,13 +21,11 @@ pub mod __test_support {
     }
 }
 
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
 use tracing_subscriber::{fmt, EnvFilter};
 
-use crate::platform::chrome::WindowChrome;
-use crate::platform::PLATFORM;
 use crate::state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,16 +41,29 @@ pub fn run() {
         .setup(|app| {
             app.manage(AppState::default());
 
-            if let Some(window) = app.get_webview_window("panel") {
-                PLATFORM.convert_to_panel(&window)?;
-                PLATFORM.apply_vibrancy(&window)?;
-            } else {
+            // FIXME(macos-26): NSPanel conversion + vibrancy are disabled.
+            // Both `convert_to_panel` (raw `setClass: NSPanel` + style/level
+            // bit-bashing via `msg_send!`) and `apply_vibrancy` throw an
+            // NSException at `applicationDidFinishLaunching:` time in the
+            // hardened-runtime packaged build on macOS 26.2. The exception
+            // unwinds through tao's extern "C" delegate callback and trips
+            // `panic_cannot_unwind`, aborting the process. Dev builds skip
+            // the hardened runtime so they're unaffected.
+            //
+            // Consequence: the panel behaves like a normal window — it steals
+            // focus on show and won't float over fullscreen apps. We accept
+            // that until we either (a) replace the isa-swizzling approach
+            // with a real NSPanel subclass via `objc2`, or (b) confirm which
+            // of the two calls is the actual culprit and re-enable the other.
+            // See `platform/macos/chrome.rs`.
+            if app.get_webview_window("panel").is_none() {
                 tracing::warn!("panel window not found in setup()");
             }
 
             hotkey::register_default(app)?;
             llm::gateway::init_client(&app.handle().clone());
             build_tray(&app.handle().clone())?;
+            build_app_menu(&app.handle().clone())?;
 
             // If onboarding hasn't been completed, show the onboarding window
             // on launch instead of sitting silently in the background.
@@ -108,18 +119,71 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(move |_app, event| match event.id.as_ref() {
-            "settings" => {
-                if let Some(win) = app_for_event.get_webview_window("settings") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
-            }
-            "quit" => {
-                app_for_event.exit(0);
-            }
+            "settings" => open_settings(&app_for_event),
+            "quit" => app_for_event.exit(0),
             _ => {}
         })
         .build(app)?;
+
+    Ok(())
+}
+
+fn open_settings(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
+/// macOS app menu — gives Cmd+, → Settings discoverability alongside the
+/// tray. On macOS the first submenu's title is replaced by the bundle name,
+/// so the "AI Text Actions" string here is cosmetic.
+fn build_app_menu(app: &AppHandle) -> tauri::Result<()> {
+    let about = PredefinedMenuItem::about(
+        app,
+        Some("About AI Text Actions"),
+        Some(AboutMetadata::default()),
+    )?;
+    let settings_item =
+        MenuItem::with_id(app, "app_settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
+    let services = PredefinedMenuItem::services(app, None)?;
+    let hide = PredefinedMenuItem::hide(app, None)?;
+    let hide_others = PredefinedMenuItem::hide_others(app, None)?;
+    let show_all = PredefinedMenuItem::show_all(app, None)?;
+    let quit = PredefinedMenuItem::quit(app, None)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let sep3 = PredefinedMenuItem::separator(app)?;
+    let sep4 = PredefinedMenuItem::separator(app)?;
+
+    let app_submenu = Submenu::with_items(
+        app,
+        "AI Text Actions",
+        true,
+        &[
+            &about,
+            &sep1,
+            &settings_item,
+            &sep2,
+            &services,
+            &sep3,
+            &hide,
+            &hide_others,
+            &show_all,
+            &sep4,
+            &quit,
+        ],
+    )?;
+
+    let menu = Menu::with_items(app, &[&app_submenu])?;
+    app.set_menu(menu)?;
+
+    let app_for_event = app.clone();
+    app.on_menu_event(move |_app, event| {
+        if event.id().as_ref() == "app_settings" {
+            open_settings(&app_for_event);
+        }
+    });
 
     Ok(())
 }

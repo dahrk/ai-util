@@ -9,24 +9,29 @@ export interface ModelOption {
   label: string;
 }
 
+// Fireworks rotates serverless model availability; if a request 404s with
+// "model ... does not exist and/or not deployed", update these IDs against
+// the live catalog at https://fireworks.ai/models (or `GET /v1/models`).
+// Keep `default_model()` in `src-tauri/src/llm/providers.rs` in sync with
+// the first entry of each list.
 export const PROVIDER_MODELS: Record<Provider, ModelOption[]> = {
   fireworks: [
     {
-      id: "accounts/fireworks/models/llama-v3p1-8b-instruct",
-      label: "Llama 3.1 8B Instruct (fast)",
+      id: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+      label: "Llama 3.3 70B Instruct (quality)",
     },
     {
-      id: "accounts/fireworks/models/llama-v3p1-70b-instruct",
-      label: "Llama 3.1 70B Instruct (quality)",
+      id: "accounts/fireworks/models/llama4-scout-instruct-basic",
+      label: "Llama 4 Scout (fast)",
     },
     {
-      id: "accounts/fireworks/models/mixtral-8x7b-instruct",
-      label: "Mixtral 8x7B Instruct",
+      id: "accounts/fireworks/models/llama4-maverick-instruct-basic",
+      label: "Llama 4 Maverick (quality)",
     },
   ],
   openrouter: [
-    { id: "meta-llama/llama-3.1-8b-instruct", label: "Llama 3.1 8B Instruct (fast)" },
-    { id: "meta-llama/llama-3.1-70b-instruct", label: "Llama 3.1 70B Instruct (quality)" },
+    { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B Instruct" },
+    { id: "meta-llama/llama-4-scout", label: "Llama 4 Scout (fast)" },
     { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5" },
   ],
 };
