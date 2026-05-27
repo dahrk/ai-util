@@ -79,7 +79,7 @@
 
 .model-picker__row {
   display: grid;
-  grid-template-columns: 16px 1fr auto;
+  grid-template-columns: 16px 1fr auto auto;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
@@ -117,6 +117,19 @@
 .model-picker__label {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.model-picker__ctx {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-strong);
+  border: 0.5px solid var(--color-divider);
+  white-space: nowrap;
   flex-shrink: 0;
 }
 

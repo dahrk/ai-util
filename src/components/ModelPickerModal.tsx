@@ -19,6 +19,36 @@ interface Props {
   testIdPrefix?: string;
 }
 
+/** Compact context-length label, e.g. 131072 → "131K", 1048576 → "1M". */
+function formatCtx(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`;
+  }
+  if (n >= 1_000) {
+    return `${Math.round(n / 1_000)}K`;
+  }
+  return n.toString();
+}
+
+/**
+ * Parse a context-length search term. Accepts "128k", "1m", "200000".
+ * Returns the minimum context length the row must meet, or null if the
+ * query doesn't look like a context spec.
+ */
+function parseCtxQuery(q: string): number | null {
+  const m = q.trim().match(/^(\d+(?:\.\d+)?)\s*([km])?$/i);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return null;
+  const suffix = m[2]?.toLowerCase();
+  if (suffix === "m") return Math.round(n * 1_000_000);
+  if (suffix === "k") return Math.round(n * 1_000);
+  // Bare number — require at least 4 digits so we don't match every short
+  // token search like "70" or "100".
+  return n >= 1000 ? Math.round(n) : null;
+}
+
 export function ModelPickerModal({
   provider,
   models,
@@ -35,11 +65,20 @@ export function ModelPickerModal({
   const filtered = useMemo(() => {
     if (!query.trim()) return models;
     const q = query.toLowerCase();
-    return models.filter(
-      (m) =>
+    // If the query parses as a context-length term ("128k", "1m", "200000"),
+    // also match rows whose context_length meets that magnitude. Text match
+    // still applies, so "128k llama" filters on the id-match path.
+    const ctxMin = parseCtxQuery(q);
+    return models.filter((m) => {
+      const textMatch =
         m.id.toLowerCase().includes(q) ||
-        (m.label?.toLowerCase().includes(q) ?? false),
-    );
+        (m.label?.toLowerCase().includes(q) ?? false);
+      if (textMatch) return true;
+      if (ctxMin != null && m.context_length != null) {
+        return m.context_length >= ctxMin;
+      }
+      return false;
+    });
   }, [models, query]);
 
   // Reset highlight when filter changes so the first match is always primed
@@ -111,11 +150,11 @@ export function ModelPickerModal({
             aria-controls={testIdPrefix ? `${testIdPrefix}-list` : undefined}
           />
         </div>
-        {provider === "fireworks" && (
-          <div className="model-picker__scope-hint">
-            Showing {models.length} serverless deployments accessible to your account.
-          </div>
-        )}
+        <div className="model-picker__scope-hint">
+          {provider === "fireworks"
+            ? `Showing ${models.length} serverless deployments accessible to your account.`
+            : `Showing ${models.length} OpenRouter models.`}
+        </div>
         <div
           ref={listRef}
           className="model-picker__list"
@@ -161,6 +200,14 @@ export function ModelPickerModal({
                   <span className="model-picker__id">{m.id}</span>
                   {m.label && (
                     <span className="model-picker__label">{m.label}</span>
+                  )}
+                  {m.context_length != null && (
+                    <span
+                      className="model-picker__ctx"
+                      title={`${m.context_length.toLocaleString()} token context`}
+                    >
+                      {formatCtx(m.context_length)} ctx
+                    </span>
                   )}
                 </div>
               );
