@@ -11,6 +11,8 @@ Select text in any app, press a hotkey, apply an AI action. Tokens stream into a
 - Native macOS **NSPanel** chrome — floats over fullscreen apps, joins all spaces, never steals focus from the underlying app.
 - **Keyboard-first**: `1`–`4` to pick an action, `Enter` to accept, `C` to copy, `R` to retry, `Backspace` to go back, `Esc` to dismiss.
 - Configurable hotkey, per-provider default model, per-action prompt override (with "restore default").
+- **Searchable model picker** with live `/v1/models` catalog, per-row **context-length chips** (`131K`, `1M`, …) and a context-length search filter — type `128k`, `1m`, or `200000` to narrow the list to models that meet that magnitude.
+- **Long-selection preview** with click-to-expand / Show less in the picker — anything past ~240 chars collapses with an *"…and N more characters"* badge; expanding reveals the full selection in a bounded scroll region without resizing the panel.
 - Dev telemetry overlay (`⌘⇧;`) showing hotkey-to-visible and first-token timings against the latency budget.
 
 ## Requirements
@@ -65,7 +67,7 @@ The **Settings** window (tray → Settings…) covers:
 
 - **Hotkey** — `Record` then press the new combo.
 - **API keys** — Fireworks + OpenRouter, with reveal/hide and a Rust-mediated **Validate** button.
-- **Default models** — per provider, free-form text input.
+- **Default models** — per provider, opened via a searchable modal picker that lists the live `/v1/models` catalog. Each row shows the model id, an optional friendly label, and a **context-length chip** (`131K`, `1M`, …) when the provider exposes it. The search box also accepts context-length terms: `128k`, `1m`, or a bare `200000` (≥ 4 digits) filters to rows whose `context_length` meets that magnitude.
 - **Actions** — enable/disable each of the four, and edit a per-action prompt override (`{text}` interpolates the selection). Use **Restore default** to clear an override.
 
 Settings persist to `~/Library/Application Support/com.yourname.ai-text-actions/` via `tauri-plugin-store`. Plaintext JSON for v1 — see the status note above.
@@ -92,6 +94,55 @@ Pre-commit sequence:
 pnpm typecheck && pnpm lint && pnpm test:run \
   && (cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test)
 ```
+
+### End-to-end (Playwright)
+
+A browser-driven suite covers the panel state machine, settings flows,
+onboarding, and a live Fireworks smoke pass via the dev `/playground`
+route — 26 specs, ~40 s end-to-end. The Tauri runtime is replaced by an
+in-browser shim (under `src/test/e2e/shims/`) whenever Vite boots with
+`VITE_TEST_MODE=1`, so the React frontend runs in real Chromium against
+the real Vite dev server with `@tauri-apps/*` resolved to JS-only fakes.
+
+```bash
+pnpm e2e            # headless
+pnpm e2e:headed     # see the browser
+pnpm e2e:ui         # interactive UI mode
+pnpm e2e:report     # open the last HTML report
+```
+
+`playwright.config.ts` boots `pnpm dev` (with `VITE_TEST_MODE=1`) as
+its `webServer`. If a dev server is already on port 1420, Playwright
+reuses it.
+
+**Real Fireworks vs mocked.** `panel.spec.ts`, `onboarding.spec.ts`
+and most of `settings.spec.ts` use deterministic completion overrides
+— no network. `playground.spec.ts` and the "validate real key" case
+in `settings.spec.ts` hit `api.fireworks.ai` directly; they self-skip
+if `FIREWORKS_API_KEY` is unset.
+
+**`.env.test` setup.** Create a gitignored `.env.test` with your keys:
+
+```bash
+cat > .env.test <<'EOF'
+# E2E test credentials. Loaded by playwright.config.ts.
+FIREWORKS_API_KEY=fw_...
+# Optional — if set, OpenRouter-fallback specs may hit OpenRouter too.
+OPENROUTER_API_KEY=
+EOF
+```
+
+Specs that need a live key call `requireFireworksKey()` /
+`testInfo.skip(!FIREWORKS_KEY, …)`, so the suite stays green without
+one — you just lose the live-streaming coverage.
+
+**Coverage notes.** [`tests/e2e/README.md`](tests/e2e/README.md)
+documents shim plumbing for adding new fakes;
+[`tests/e2e/COVERAGE_GAPS.md`](tests/e2e/COVERAGE_GAPS.md) lists known
+gaps (panel state-machine edges, error-path classifiers,
+provider-failover ordering, settings persistence round-trips,
+context-length search, a11y-probe failure path, Rust unit gaps),
+prioritised by effort.
 
 ## Project structure
 
