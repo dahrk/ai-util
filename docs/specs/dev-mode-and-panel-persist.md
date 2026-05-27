@@ -58,13 +58,15 @@ Disclosure behaviour:
 
 Ordered top-to-bottom inside the section:
 
-1. **Toggles row** — checkboxes that already exist or are introduced
-   in this spec:
-   - "Keep panel open after action" *(see part (b))* — key
-     `keep_panel_open_after_action`.
+1. **Toggles row** — developer-only behaviour toggles:
    - "Panel never auto-hides on blur (drag/inspect)" — existing
      key `dev_panel_persistent`. Moved here from its current
      standalone position.
+
+   The user-facing **Keep panel open after action** toggle from
+   part (b) lives in a separate top-level *Panel behaviour* section
+   (see (b)'s "UI placement"), so it remains visible in release
+   builds where the Developer section is hidden.
 
 2. **Inline playground card**:
    - Provider radio (`fireworks` / `openrouter`) — defaults to whatever
@@ -203,7 +205,23 @@ Default: `false` (today's behaviour).
 
 ### UI placement
 
-Inside the new **Developer** section from part (a). Label:
+This is a **user-facing** behaviour toggle, **not** a dev affordance —
+it deliberately lives in regular Settings, separate from the Developer
+section of part (a). Two pieces of evidence drive that placement:
+
+- The use cases ("A/B compare AI output against source", "multi-step
+  iterate-then-paste") are legitimate end-user workflows, not debugging.
+- Part (a) is gated on `cfg(debug_assertions)`; placing this toggle
+  inside that section would make it disappear from release builds,
+  defeating its purpose.
+
+Concrete placement: a new top-level `<Section>` in
+`src/routes/Settings.tsx`, **between** the existing *Actions* and
+*Developer* sections, titled **"Panel behaviour"**, hint:
+*"Control how the floating panel responds to actions."*
+
+The section contains exactly one row for now (room to grow as future
+panel-behaviour toggles ship). Label:
 
 > **Keep panel open after action**
 > Don't auto-hide the panel after paste-back. Useful for reviewing
@@ -213,9 +231,9 @@ Inside the new **Developer** section from part (a). Label:
 `data-testid="keep-panel-open"` for the checkbox. Settings command:
 `set_keep_panel_open_after_action(value: bool)`.
 
-If part (a) ships later, this checkbox can live as a standalone row
-under "Settings → Panel behaviour" in the interim; the spec is
-agnostic about ordering.
+(The Developer section from part (a) still groups
+`dev_panel_persistent` — that toggle disables blur-dismissal entirely,
+which is a debugging affordance, not a user-facing preference.)
 
 ### Behaviour
 

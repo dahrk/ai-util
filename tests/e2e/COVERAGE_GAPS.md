@@ -386,3 +386,151 @@ the backend (override/placeholder/max_tokens matrix; fetch_models parse
 7. **Rust gaps `P1`/`PI1`–`PI3`** — five-minute wins on the
    best-tested module; close them while you're already there.
 8. The C tier is optional and can ride along with feature work.
+
+---
+
+## Supplements (2026-05-27 re-audit)
+
+Adds gaps found by a second sweep that aren't represented above. Same
+A/B/C tiering.
+
+### S1. `formatCtx` / `parseCtxQuery` direct unit tests *(A-tier)*
+- **Target:** new `src/components/__tests__/ModelPickerModal.test.tsx`.
+- **Why:** B8 covers context-length search e2e, but the two helpers in
+  [`ModelPickerModal.tsx`](src/components/ModelPickerModal.tsx) are pure
+  and have no direct unit coverage. A regression in the bare-number floor
+  (`>= 1000`) or `M` vs `K` rounding would only surface via B8's slower
+  path.
+- **Sketch:** Re-export the helpers and table-drive them.
+  `"128k"→128_000`, `"1m"→1_000_000`, `"1.5m"→1_500_000`,
+  `"200000"→200_000`, `"500"→null`, `"foo"→null`, `"  128k  "→128_000`,
+  `"-1"→null`. For `formatCtx`: `131072→"131K"`, `1_000_000→"1M"`,
+  `1_048_576→"1M"` (rounding), `999→"999"`.
+
+### S2. ModelDropdown row shows `context_length` chip *(A-tier)*
+- **Target:** extend `src/components/__tests__/ModelDropdown.test.tsx`.
+- **Why:** A9 hits the *Settings* surface; the unit-level component
+  test never asserts that a mocked `fetchModels` row with
+  `context_length` renders the `"131K ctx"` badge with a properly-
+  formatted `title` attribute.
+- **Sketch:** Mock `[{id:"a", label:"A", context_length: 131072}]`;
+  open modal; assert `getByText(/131K ctx/)`; check `title` attribute
+  contains `131,072`.
+
+### S3. `classify()` regex-branch fan-out *(A-tier)*
+- **Target:** new `src/lib/errorKinds.test.ts` (or extend ErrorView).
+- **Why:** `errorKinds.ts` declares four regexes with multiple
+  alternations; today's tests hit one branch per regex. Priority
+  ordering (e.g. blob containing both `"offline"` AND `"401"` →
+  `"no-connection"` wins) is also unpinned.
+- **Sketch:** `it.each` over every alternation in every regex. Plus
+  three "priority" cases proving the order in `classify` is stable.
+
+### S4. Failover trigger matrix in the gateway *(B-tier)*
+- **Target:** `src-tauri/src/llm/gateway.rs#tests`.
+- **Why:** Existing tests cover `401 → fallback` and `429 → fallback`.
+  Missing the other status codes and the *negative* cases:
+  - `500 → fallback` (server error should fall back)
+  - `Cancelled → NOT fallback` (cancellation must propagate)
+  - `malformed SSE chunk early in stream → NOT fallback` (today: log
+    and skip the bad chunk, keep streaming the same provider)
+- **Sketch:** Three `#[tokio::test]` cases. Each asserts
+  `switch_calls == 1` or `0` per the contracted outcome above.
+
+### S5. Failover state does NOT persist across completions *(B-tier)*
+- **Target:** new `src-tauri/tests/failover_isolation.rs`.
+- **Why:** Each `run_completion` builds fresh provider state. The
+  *implicit* contract is that a previous failover doesn't make
+  subsequent calls go to OpenRouter first. There's no test on this —
+  an agent adding a "sticky preferred provider" cache could silently
+  break it.
+- **Sketch:** Two sequential `run_completion` calls; first
+  Fireworks-500 + OpenRouter-OK, second Fireworks-OK only. Assert each
+  mock's `received_requests().len()`: Fireworks twice, OpenRouter once.
+
+### S6. Partial stream (server closes without `[DONE]`) *(B-tier)*
+- **Target:** `src-tauri/src/llm/gateway.rs#tests`.
+- **Why:** When the SSE stream ends with `None` before `[DONE]`,
+  `stream_one` returns the partial buffer as `Ok`. This is a contract
+  worth pinning — if anyone changes it to error on missing terminator,
+  the test surfaces the decision.
+- **Sketch:** Wiremock with `set_body_string` containing two valid
+  `data:` lines and no `[DONE]`. Assert the returned text equals the
+  concatenated tokens; assert no error.
+
+### S7. Network connect-timeout → `GatewayError::Network` *(B-tier)*
+- **Target:** `src-tauri/src/llm/gateway.rs#tests`.
+- **Why:** `init_client` sets `connect_timeout(10s)`; no test exercises
+  it. PI5 covers the same idea for `fetch_models` (closed local port) —
+  this is the chat-completions twin.
+- **Sketch:** Point `ProviderConfig.base_url` at `http://192.0.2.1`
+  (TEST-NET-1, RFC 5737 — guaranteed unrouteable) with a short test
+  client. Assert `matches!(err, GatewayError::Network(_))`.
+
+### S8. Corrupt JSON in the settings store *(B-tier)*
+- **Target:** `src-tauri/src/settings.rs#tests`.
+- **Why:** B7 covers field add/remove; not the case where a user (or a
+  bad write) leaves `settings.json` with malformed JSON. Today
+  `load_blocking` returns `Err(SettingsError::Serde(_))` and the whole
+  load fails. Worth pinning + deciding whether to harden to
+  "log + return defaults".
+- **Sketch:** Red test that locks today's behaviour. If we harden, flip
+  the assertion. Either way, the test enforces the decision.
+
+### S9. `target` parameter routes events to the right window *(B-tier)*
+- **Target:** new e2e (or a Rust integration test with two windows).
+- **Why:** `target = Some("playground")` is the seam that prevents
+  Playground completions from polluting the panel state machine. There
+  is no automated test that events with one target are not delivered to
+  the other.
+- **Sketch:** Mount `/panel`, fire a Playground completion via direct
+  `runCompletion(_, _, "playground")`, assert ActionPicker remains
+  visible (no streaming state). Pair with the inverse direction.
+
+### S10. Auto-clipboard failure is non-fatal *(B-tier)*
+- **Target:** extend `shims/plugin-clipboard-manager.ts` + a new e2e
+  case in `panel.spec.ts`.
+- **Why:** `completion.rs` log-don't-fails the clipboard auto-write so
+  the user still sees the result. An agent porting to a fragile-clipboard
+  platform might "fix" this by raising it as an error.
+- **Sketch:** Add a `__TEST__.failNextClipboardWrite()` shim hook; run
+  the panel happy path; assert ResultView still renders and no ErrorView
+  appears.
+
+### S11. Listeners-before-invokes invariant *(B-tier)*
+- **Target:** new `tests/e2e/listeners.spec.ts`.
+- **Why:** `Panel.tsx` registers all streaming-event listeners at
+  mount — the load-bearing contract for not dropping the first token.
+  Today no test fires `selection_captured` *before* `Panel.tsx` mounts
+  to verify nothing gets lost on cold start.
+- **Sketch:** Queue a `selection_captured` event on `DOMContentLoaded`
+  via the shim's event bus *before* React mounts; navigate to `/panel`;
+  assert the picker renders with the queued selection.
+
+### S12. Onboarding step 4 hides OpenRouter block when no key *(A-tier)*
+- **Target:** extend `tests/e2e/onboarding.spec.ts`.
+- **Why:** `StepDefaultModels` conditionally hides the OpenRouter block.
+  The existing step-4 test seeds Fireworks only and asserts
+  `onboarding_complete` flips — it does NOT assert the OpenRouter block
+  is absent.
+- **Sketch:** Add `expect(page.getByTestId("openrouter-model-trigger"))
+  .not.toBeVisible()` to the existing step-4 test.
+
+### S13. Visual snapshot baseline *(C-tier)*
+- **Target:** new `tests/e2e/visual.spec.ts`.
+- **Why:** CSS-token regressions during refactor are invisible to the
+  current suite. A Playwright `toHaveScreenshot()` baseline per panel
+  state catches them.
+- **Sketch:** Tight scope — panel root in `picking`, `streaming`
+  (frozen token sequence), `result`, `error`. Use Playwright's
+  `--update-snapshots` for the baseline.
+
+---
+
+After landing **S1 + S3 + S12** (≈ 30 min total) alongside the
+existing **A5/A6/A10/A11**, an agent has enough leverage on the
+panel/error/settings surfaces to safely tackle the upcoming dev-mode +
+persistent-panel work (see
+[`docs/specs/dev-mode-and-panel-persist.md`](../../docs/specs/dev-mode-and-panel-persist.md))
+without manual smoke. The S4–S11 batch is the contract-pinning layer
+that pays off most when agents start refactoring the gateway.
