@@ -23,11 +23,13 @@ use crate::llm::providers::Provider;
 
 /// One row in a provider's model catalog. `label` is `None` when the
 /// provider's `/v1/models` doesn't surface a friendly name — UI falls back
-/// to showing the raw `id`.
+/// to showing the raw `id`. `context_length` is `None` when the provider
+/// doesn't report it on this row.
 #[derive(Debug, Clone, Serialize)]
 pub struct ModelInfo {
     pub id: String,
     pub label: Option<String>,
+    pub context_length: Option<u64>,
 }
 
 #[derive(Error, Debug)]
@@ -139,6 +141,8 @@ struct FireworksModelsResponse {
 #[derive(Deserialize)]
 struct FireworksModelRow {
     id: String,
+    #[serde(default)]
+    context_length: Option<u64>,
 }
 
 #[async_trait]
@@ -181,6 +185,7 @@ impl ProviderImpl for FireworksProvider {
                     // Fireworks /v1/models has no friendly name — use the
                     // deployment scope as the label so the picker surfaces it.
                     label: Some("serverless".into()),
+                    context_length: row.context_length,
                 })
                 .collect()
         })
@@ -203,6 +208,8 @@ struct OpenRouterModelRow {
     id: String,
     #[serde(default)]
     name: Option<String>,
+    #[serde(default)]
+    context_length: Option<u64>,
 }
 
 #[async_trait]
@@ -236,6 +243,7 @@ impl ProviderImpl for OpenRouterProvider {
                 .map(|row| ModelInfo {
                     id: row.id,
                     label: row.name,
+                    context_length: row.context_length,
                 })
                 .collect()
         })
@@ -276,7 +284,10 @@ mod tests {
             .and(header("authorization", "Bearer test-key"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "data": [
-                    { "id": "accounts/fireworks/models/llama-v3p3-70b-instruct" },
+                    {
+                        "id": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+                        "context_length": 131072,
+                    },
                     { "id": "accounts/fireworks/models/llama4-scout-instruct-basic" },
                 ]
             })))
@@ -298,6 +309,15 @@ mod tests {
             Some("serverless"),
             "Fireworks rows get a 'serverless' scope label",
         );
+        assert_eq!(
+            result[0].context_length,
+            Some(131072),
+            "Fireworks context_length flows through to ModelInfo",
+        );
+        assert_eq!(
+            result[1].context_length, None,
+            "row without context_length → None",
+        );
     }
 
     #[tokio::test]
@@ -308,7 +328,11 @@ mod tests {
             .and(path("/v1/models"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "data": [
-                    { "id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct" },
+                    {
+                        "id": "meta-llama/llama-3.3-70b-instruct",
+                        "name": "Llama 3.3 70B Instruct",
+                        "context_length": 128000,
+                    },
                     { "id": "anthropic/claude-haiku-4-5" },
                 ]
             })))
@@ -322,7 +346,16 @@ mod tests {
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].label.as_deref(), Some("Llama 3.3 70B Instruct"));
+        assert_eq!(
+            result[0].context_length,
+            Some(128000),
+            "OpenRouter context_length flows through to ModelInfo",
+        );
         assert!(result[1].label.is_none(), "row without name → label None");
+        assert_eq!(
+            result[1].context_length, None,
+            "row without context_length → None",
+        );
     }
 
     #[tokio::test]

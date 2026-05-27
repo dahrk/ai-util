@@ -35,7 +35,11 @@ interface Props {
 }
 
 function staticFallback(provider: Provider): ModelInfo[] {
-  return PROVIDER_MODELS[provider].map((m) => ({ id: m.id, label: m.label }));
+  return PROVIDER_MODELS[provider].map((m) => ({
+    id: m.id,
+    label: m.label,
+    context_length: null,
+  }));
 }
 
 export function ModelDropdown({
@@ -123,7 +127,10 @@ export function ModelDropdown({
   // Build the list shown in the modal — include the stale value so the user
   // can see what they had selected, even if it's no longer in the catalog.
   const modalModels: ModelInfo[] = staleSaved
-    ? [{ id: value, label: "(no longer available)" }, ...models]
+    ? [
+        { id: value, label: "(no longer available)", context_length: null },
+        ...models,
+      ]
     : models;
 
   const triggerLabel =

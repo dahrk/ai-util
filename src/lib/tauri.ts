@@ -75,6 +75,7 @@ export const probeAccessibility = (): Promise<boolean> =>
 export interface ModelInfo {
   id: string;
   label: string | null;
+  context_length: number | null;
 }
 
 export const fetchModels = (
