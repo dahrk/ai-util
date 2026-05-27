@@ -44,6 +44,10 @@ vi.mock("../../lib/tauri", () => ({
     onboarding_complete: true,
   })),
   validateApiKey: vi.fn(async () => ({ ok: true, status: 200, message: null })),
+  fetchModels: vi.fn(async (_p: string) => [
+    { id: "live-default-model", label: "Live Default" },
+    { id: "live-other-model", label: "Live Other" },
+  ]),
 }));
 
 import Onboarding from "../../routes/Onboarding";
@@ -101,7 +105,7 @@ describe("<Onboarding />", () => {
     expect(screen.getByTestId("step-4")).toBeInTheDocument();
   });
 
-  it("step 4 pre-selects the first model option per provider and finishes", async () => {
+  it("step 4 pre-selects the first live Fireworks model and finishes", async () => {
     render(<Onboarding />);
     await waitFor(() => expect(screen.getByTestId("step-1-next")).not.toBeDisabled());
     fireEvent.click(screen.getByTestId("step-1-next"));
@@ -113,14 +117,16 @@ describe("<Onboarding />", () => {
     fireEvent.click(screen.getByTestId("step-2-next"));
     fireEvent.click(screen.getByTestId("step-3-skip"));
 
-    // First Fireworks model option is pre-selected.
-    const firstOption = screen.getByTestId(
-      "fireworks-model-accounts/fireworks/models/llama-v3p1-8b-instruct",
-    );
-    expect(firstOption.className).toContain("is-selected");
+    // Live fetch resolves → first model auto-selected; trigger label shows it.
+    await waitFor(() => {
+      const trigger = screen.getByTestId("fireworks-model-trigger");
+      expect(trigger).toHaveTextContent("live-default-model");
+    });
 
     fireEvent.click(screen.getByTestId("step-4-finish"));
-    await waitFor(() => expect(setModel).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(setModel).toHaveBeenCalledWith("fireworks", "live-default-model"),
+    );
     await waitFor(() => expect(completeOnboarding).toHaveBeenCalled());
   });
 });

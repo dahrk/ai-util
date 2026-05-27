@@ -54,6 +54,17 @@
         "visible": false,
         "resizable": false,
         "center": true
+      },
+      {
+        "label": "playground",
+        "title": "Playground",
+        "url": "/playground",
+        "width": 640,
+        "height": 560,
+        "visible": false,
+        "resizable": true,
+        "minWidth": 480,
+        "minHeight": 400
       }
     ],
     "security": {

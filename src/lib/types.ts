@@ -26,6 +26,7 @@ export interface AppSettings {
   prompts: Record<string, string>;
   enabled_actions: string[];
   onboarding_complete: boolean;
+  dev_panel_persistent: boolean;
 }
 
 export interface CompletionError {

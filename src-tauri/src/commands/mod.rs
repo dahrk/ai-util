@@ -4,6 +4,7 @@
 //! map errors to a serializable type, return. Business logic lives elsewhere.
 
 pub mod completion;
+pub mod models;
 pub mod selection;
 pub mod settings;
 pub mod window;

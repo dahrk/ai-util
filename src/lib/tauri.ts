@@ -10,8 +10,14 @@ import type { Action, AppSettings, CompletionError, Selection } from "./types";
 export const getSelection = (): Promise<Selection> =>
   invoke("get_selection");
 
-export const runCompletion = (action: Action, text: string): Promise<void> =>
-  invoke("run_completion", { action, text });
+// `target` is the window label that should receive streaming events. Omit
+// to default to the panel window. Pass "playground" from the dev surface so
+// Panel.tsx's state machine isn't disturbed.
+export const runCompletion = (
+  action: Action,
+  text: string,
+  target?: string,
+): Promise<void> => invoke("run_completion", { action, text, target });
 
 export const cancelCompletion = (): Promise<void> =>
   invoke("cancel_completion");
@@ -32,6 +38,9 @@ export const setApiKey = (
 
 export const setHotkey = (shortcut: string): Promise<AppSettings> =>
   invoke("set_hotkey", { shortcut });
+
+export const setDevPanelPersistent = (value: boolean): Promise<AppSettings> =>
+  invoke("set_dev_panel_persistent", { value });
 
 export const setModel = (
   provider: "fireworks" | "openrouter",
@@ -62,6 +71,15 @@ export const validateApiKey = (
 
 export const probeAccessibility = (): Promise<boolean> =>
   invoke("probe_accessibility");
+
+export interface ModelInfo {
+  id: string;
+  label: string | null;
+}
+
+export const fetchModels = (
+  provider: "fireworks" | "openrouter",
+): Promise<ModelInfo[]> => invoke("fetch_models", { provider });
 
 export const showPanel = (): Promise<void> => invoke("show_panel");
 

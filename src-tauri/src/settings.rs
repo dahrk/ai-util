@@ -119,6 +119,7 @@ mod tests {
             onboarding_complete: true,
             enabled_actions: vec!["summarize".into(), "edit".into()],
             prompts,
+            dev_panel_persistent: false,
         };
 
         let json = serde_json::to_string(&s).expect("serialize");

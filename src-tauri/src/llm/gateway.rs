@@ -79,6 +79,8 @@ struct ChatBody<'a> {
     messages: &'a [Message],
     stream: bool,
     temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
 }
 
 /// A boxed mutable token callback. Used so the gateway can be called from
@@ -101,6 +103,7 @@ pub async fn run_completion(
     messages: Vec<Message>,
     fireworks: Option<ProviderConfig>,
     openrouter: Option<ProviderConfig>,
+    max_tokens: Option<u32>,
     on_token: TokenSink,
     on_provider_switch: SwitchSink,
     cancel: CancellationToken,
@@ -114,7 +117,7 @@ pub async fn run_completion(
 
     // Try Fireworks first.
     if let Some(cfg) = &fireworks {
-        match stream_one(cfg, &messages, on_token.clone(), cancel.clone()).await {
+        match stream_one(cfg, &messages, max_tokens, on_token.clone(), cancel.clone()).await {
             Ok(text) => return Ok(text),
             Err(GatewayError::Cancelled) => return Err(GatewayError::Cancelled),
             Err(e) => {
@@ -130,7 +133,7 @@ pub async fn run_completion(
         if fireworks.is_some() {
             (on_provider_switch.lock())(Provider::Fireworks, Provider::OpenRouter);
         }
-        match stream_one(cfg, &messages, on_token.clone(), cancel.clone()).await {
+        match stream_one(cfg, &messages, max_tokens, on_token.clone(), cancel.clone()).await {
             Ok(text) => return Ok(text),
             Err(GatewayError::Cancelled) => return Err(GatewayError::Cancelled),
             Err(e) => {
@@ -149,6 +152,7 @@ pub async fn run_completion(
 async fn stream_one(
     cfg: &ProviderConfig,
     messages: &[Message],
+    max_tokens: Option<u32>,
     on_token: TokenSink,
     cancel: CancellationToken,
 ) -> Result<String, GatewayError> {
@@ -157,6 +161,7 @@ async fn stream_one(
         messages,
         stream: true,
         temperature: 0.3,
+        max_tokens,
     };
 
     let mut headers = HeaderMap::new();
@@ -331,6 +336,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(server.uri(), Provider::Fireworks)),
             None,
+            None,
             on_token,
             on_switch,
             CancellationToken::new(),
@@ -370,6 +376,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(fireworks.uri(), Provider::Fireworks)),
             Some(cfg(openrouter.uri(), Provider::OpenRouter)),
+            None,
             on_token,
             on_switch,
             CancellationToken::new(),
@@ -399,6 +406,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(f.uri(), Provider::Fireworks)),
             Some(cfg(o.uri(), Provider::OpenRouter)),
+            None,
             token_sink(|_| {}),
             switch_sink(|_, _| {}),
             CancellationToken::new(),
@@ -443,6 +451,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(server.uri(), Provider::Fireworks)),
             None,
+            None,
             token_sink(|_| {}),
             switch_sink(|_, _| {}),
             cancel,
@@ -474,6 +483,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(f.uri(), Provider::Fireworks)),
             Some(cfg(o.uri(), Provider::OpenRouter)),
+            None,
             token_sink(|_| {}),
             on_switch,
             CancellationToken::new(),
@@ -503,6 +513,7 @@ mod tests {
             build_messages(Action::Summarize, "hi"),
             Some(cfg(server.uri(), Provider::Fireworks)),
             None,
+            None,
             token_sink(|_| {}),
             switch_sink(|_, _| {}),
             CancellationToken::new(),
@@ -518,6 +529,7 @@ mod tests {
         init();
         let err = run_completion(
             build_messages(Action::Summarize, "hi"),
+            None,
             None,
             None,
             token_sink(|_| {}),

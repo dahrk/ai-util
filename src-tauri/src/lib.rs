@@ -14,6 +14,7 @@ mod window;
 pub mod __test_support {
     pub use crate::llm::gateway::{run_completion, switch_sink, token_sink, TokenSink};
     pub use crate::llm::prompts::{build_messages, Action};
+    pub use crate::llm::provider_impl::{provider_for, ModelInfo, ProviderError, ProviderImpl};
     pub use crate::llm::providers::{Provider, ProviderConfig};
 
     pub fn init_client_for_tests() {
@@ -92,12 +93,14 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_api_key,
             commands::settings::set_hotkey,
+            commands::settings::set_dev_panel_persistent,
             commands::settings::set_model,
             commands::settings::set_prompt_override,
             commands::settings::set_enabled_actions,
             commands::settings::complete_onboarding,
             commands::settings::validate_api_key,
             commands::settings::probe_accessibility,
+            commands::models::fetch_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ai-text-actions");
@@ -105,7 +108,13 @@ pub fn run() {
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let settings_item = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+    #[cfg(debug_assertions)]
+    let playground_item = MenuItem::with_id(app, "playground", "Playground…", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, Some("Cmd+Q"))?;
+
+    #[cfg(debug_assertions)]
+    let menu = Menu::with_items(app, &[&settings_item, &playground_item, &quit_item])?;
+    #[cfg(not(debug_assertions))]
     let menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
 
     let app_for_event = app.clone();
@@ -120,6 +129,8 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(move |_app, event| match event.id.as_ref() {
             "settings" => open_settings(&app_for_event),
+            #[cfg(debug_assertions)]
+            "playground" => open_playground(&app_for_event),
             "quit" => app_for_event.exit(0),
             _ => {}
         })
@@ -130,6 +141,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 fn open_settings(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
+#[cfg(debug_assertions)]
+fn open_playground(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("playground") {
         let _ = win.show();
         let _ = win.set_focus();
     }

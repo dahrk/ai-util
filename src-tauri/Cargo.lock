@@ -59,6 +59,7 @@ name = "ai-text-actions"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "cocoa 0.26.1",
  "core-graphics 0.24.0",
  "enigo",

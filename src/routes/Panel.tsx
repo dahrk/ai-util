@@ -10,6 +10,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useGlobalKeydown, useTauriEvent } from "../lib/hooks";
 import { usePanelStore } from "../lib/store";
 import {
+  getSettings,
   hidePanel,
   onCompletionDone,
   onCompletionError,
@@ -48,6 +49,28 @@ export default function Panel() {
 
   const [needsPermission, setNeedsPermission] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [persistent, setPersistent] = useState(false);
+
+  // Refresh the dev_panel_persistent flag on focus so toggling it in Settings
+  // takes effect next time the panel is shown.
+  useEffect(() => {
+    const refresh = () => {
+      void getSettings().then((s) => setPersistent(s.dev_panel_persistent));
+    };
+    refresh();
+    let unlistenFn: (() => void) | undefined;
+    let cancelled = false;
+    void getCurrentWindow()
+      .listen<unknown>("tauri://focus", refresh)
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlistenFn = fn;
+      });
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
+  }, []);
 
   useTauriEvent(
     onSelectionCaptured,
@@ -96,11 +119,15 @@ export default function Panel() {
   useGlobalKeydown({ Escape: () => void hidePanel() }, []);
 
   // Dismiss on window blur (click-outside). Wired through useTauriEvent for
-  // the same cancel-safe cleanup pattern.
+  // the same cancel-safe cleanup pattern. When `dev_panel_persistent` is on,
+  // skip the auto-hide so the panel stays put for inspection/dragging.
   useTauriEvent(
     (cb) => getCurrentWindow().listen<unknown>("tauri://blur", () => cb()),
-    () => void hidePanel(),
-    [],
+    () => {
+      if (persistent) return;
+      void hidePanel();
+    },
+    [persistent],
   );
 
   // Track in-flight action so accidental double-invokes are no-ops.
@@ -141,7 +168,10 @@ export default function Panel() {
   }
 
   return (
-    <div className="panel-root">
+    <div
+      className="panel-root"
+      data-tauri-drag-region={persistent ? "" : undefined}
+    >
       {state.kind === "picking" && (
         <ActionPicker selection={state.selection} onPick={handlePick} />
       )}

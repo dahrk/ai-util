@@ -8,10 +8,11 @@ import { RotateCcw } from "lucide-react";
 import { ActionIcon } from "../components/ActionIcon";
 import { ApiKeyInput } from "../components/ApiKeyInput";
 import { HotkeyRecorder } from "../components/HotkeyRecorder";
-import { defaultModelId } from "../lib/models";
+import { ModelDropdown } from "../components/ModelDropdown";
 import {
   getSettings,
   setApiKey,
+  setDevPanelPersistent,
   setEnabledActions,
   setHotkey,
   setModel,
@@ -39,64 +40,99 @@ export default function Settings() {
 
   return (
     <div className="settings">
-      <header className="settings__header">
-        <h1>Settings</h1>
-      </header>
+      <div className="settings__inner">
+        <header className="settings__header">
+          <h1>Settings</h1>
+        </header>
 
-      <Section title="Hotkey" hint="Press the keys you'd like to use to open the panel.">
-        <HotkeyRecorder
-          value={settings.hotkey}
-          onChange={async (chord) => {
-            try {
-              const next = await setHotkey(chord);
-              applied(next);
-            } catch (e) {
-              console.error("set hotkey failed:", e);
+        <Section title="Hotkey" hint="Press the keys you'd like to use to open the panel.">
+          <HotkeyRecorder
+            value={settings.hotkey}
+            onChange={async (chord) => {
+              try {
+                const next = await setHotkey(chord);
+                applied(next);
+              } catch (e) {
+                console.error("set hotkey failed:", e);
+              }
+            }}
+          />
+        </Section>
+
+        <Section title="API keys" hint="Fireworks is required. OpenRouter is an optional fallback.">
+          <ApiKeyInput
+            provider="fireworks"
+            label="Fireworks"
+            helpUrl="https://fireworks.ai/account/api-keys"
+            value={settings.fireworks_key}
+            onSave={async (k) => applied(await setApiKey("fireworks", k))}
+          />
+          <ApiKeyInput
+            provider="openrouter"
+            label="OpenRouter"
+            helpUrl="https://openrouter.ai/keys"
+            value={settings.openrouter_key}
+            onSave={async (k) => applied(await setApiKey("openrouter", k))}
+          />
+        </Section>
+
+        <Section title="Default models" hint="Per-provider model used unless overridden.">
+          <div className="settings__row">
+            <label className="settings__row-label">Fireworks</label>
+            <ModelDropdown
+              provider="fireworks"
+              value={settings.fireworks_model ?? ""}
+              hasKey={!!settings.fireworks_key}
+              onChange={async (m) => applied(await setModel("fireworks", m))}
+              testIdPrefix="fireworks-model"
+            />
+          </div>
+          <div className="settings__row">
+            <label className="settings__row-label">OpenRouter</label>
+            <ModelDropdown
+              provider="openrouter"
+              value={settings.openrouter_model ?? ""}
+              hasKey={!!settings.openrouter_key}
+              onChange={async (m) => applied(await setModel("openrouter", m))}
+              testIdPrefix="openrouter-model"
+            />
+          </div>
+        </Section>
+
+        <Section title="Actions" hint="Enable/disable actions and edit their default prompt.">
+          <ActionList
+            enabled={settings.enabled_actions}
+            prompts={settings.prompts}
+            onToggle={async (next) => applied(await setEnabledActions(next))}
+            onPromptChange={async (action, prompt) =>
+              applied(await setPromptOverride(action, prompt))
             }
-          }}
-        />
-      </Section>
+          />
+        </Section>
 
-      <Section title="API keys" hint="Fireworks is required. OpenRouter is an optional fallback.">
-        <ApiKeyInput
-          provider="fireworks"
-          label="Fireworks"
-          helpUrl="https://fireworks.ai/account/api-keys"
-          value={settings.fireworks_key}
-          onSave={async (k) => applied(await setApiKey("fireworks", k))}
-        />
-        <ApiKeyInput
-          provider="openrouter"
-          label="OpenRouter"
-          helpUrl="https://openrouter.ai/keys"
-          value={settings.openrouter_key}
-          onSave={async (k) => applied(await setApiKey("openrouter", k))}
-        />
-      </Section>
-
-      <Section title="Default models" hint="Per-provider model used unless overridden.">
-        <ModelField
-          label="Fireworks"
-          value={settings.fireworks_model ?? defaultModelId("fireworks")}
-          onSave={async (m) => applied(await setModel("fireworks", m))}
-        />
-        <ModelField
-          label="OpenRouter"
-          value={settings.openrouter_model ?? defaultModelId("openrouter")}
-          onSave={async (m) => applied(await setModel("openrouter", m))}
-        />
-      </Section>
-
-      <Section title="Actions" hint="Enable/disable actions and edit their default prompt.">
-        <ActionList
-          enabled={settings.enabled_actions}
-          prompts={settings.prompts}
-          onToggle={async (next) => applied(await setEnabledActions(next))}
-          onPromptChange={async (action, prompt) =>
-            applied(await setPromptOverride(action, prompt))
-          }
-        />
-      </Section>
+        <Section
+          title="Developer"
+          hint="Options for testing and debugging the panel without a full rebuild."
+        >
+          <label className="settings__checkbox-row">
+            <input
+              type="checkbox"
+              checked={settings.dev_panel_persistent}
+              onChange={async (e) =>
+                applied(await setDevPanelPersistent(e.target.checked))
+              }
+              data-testid="dev-panel-persistent"
+            />
+            <span>
+              <strong>Keep panel open and moveable for testing</strong>
+              <small>
+                Disables auto-hide on blur and lets you drag the panel by its
+                background.
+              </small>
+            </span>
+          </label>
+        </Section>
+      </div>
     </div>
   );
 }
@@ -118,34 +154,6 @@ function Section({
       </div>
       <div className="settings__section-body">{children}</div>
     </section>
-  );
-}
-
-function ModelField({
-  label,
-  value,
-  onSave,
-}: {
-  label: string;
-  value: string;
-  onSave: (model: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  return (
-    <div className="settings__row">
-      <label className="settings__row-label">{label}</label>
-      <input
-        type="text"
-        className="settings__row-input"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          if (draft !== value) onSave(draft);
-        }}
-        spellCheck={false}
-        data-testid={`model-input-${label.toLowerCase()}`}
-      />
-    </div>
   );
 }
 

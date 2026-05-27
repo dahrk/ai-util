@@ -7,9 +7,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { ArrowRight, Check, Shield, Sparkles } from "lucide-react";
 
 import { ApiKeyInput } from "../components/ApiKeyInput";
+import { ModelDropdown } from "../components/ModelDropdown";
 import { ProviderIndicator } from "../components/ProviderIndicator";
 import { ShortcutChip } from "../components/ShortcutChip";
-import { defaultModelId, PROVIDER_MODELS } from "../lib/models";
 import {
   completeOnboarding,
   getSettings,
@@ -269,17 +269,15 @@ function StepDefaultModels({
   onSaved: (s: AppSettings) => Promise<void>;
   onFinish: () => void;
 }) {
-  const [fireworksModel, setFireworksModel] = useState(
-    settings.fireworks_model ?? defaultModelId("fireworks"),
-  );
-  const [openrouterModel, setOpenrouterModel] = useState(
-    settings.openrouter_model ?? defaultModelId("openrouter"),
-  );
+  const [fireworksModel, setFireworksModel] = useState(settings.fireworks_model ?? "");
+  const [openrouterModel, setOpenrouterModel] = useState(settings.openrouter_model ?? "");
 
   const finish = useCallback(async () => {
-    const s = await setModel("fireworks", fireworksModel);
-    await onSaved(s);
-    if (settings.openrouter_key) {
+    if (fireworksModel) {
+      const s = await setModel("fireworks", fireworksModel);
+      await onSaved(s);
+    }
+    if (settings.openrouter_key && openrouterModel) {
       const s2 = await setModel("openrouter", openrouterModel);
       await onSaved(s2);
     }
@@ -298,9 +296,10 @@ function StepDefaultModels({
         <div className="onboarding__model-header">
           <ProviderIndicator provider="fireworks" />
         </div>
-        <ModelSelector
-          options={PROVIDER_MODELS.fireworks}
+        <ModelDropdown
+          provider="fireworks"
           value={fireworksModel}
+          hasKey={!!settings.fireworks_key}
           onChange={setFireworksModel}
           testIdPrefix="fireworks-model"
         />
@@ -311,9 +310,10 @@ function StepDefaultModels({
           <div className="onboarding__model-header">
             <ProviderIndicator provider="openrouter" />
           </div>
-          <ModelSelector
-            options={PROVIDER_MODELS.openrouter}
+          <ModelDropdown
+            provider="openrouter"
             value={openrouterModel}
+            hasKey={!!settings.openrouter_key}
             onChange={setOpenrouterModel}
             testIdPrefix="openrouter-model"
           />
@@ -332,40 +332,5 @@ function StepDefaultModels({
         </button>
       </div>
     </main>
-  );
-}
-
-function ModelSelector({
-  options,
-  value,
-  onChange,
-  testIdPrefix,
-}: {
-  options: { id: string; label: string }[];
-  value: string;
-  onChange: (id: string) => void;
-  testIdPrefix: string;
-}) {
-  return (
-    <ul className="model-selector" role="radiogroup">
-      {options.map((o) => (
-        <li key={o.id}>
-          <label
-            className={`model-selector__option${value === o.id ? " is-selected" : ""}`}
-            data-testid={`${testIdPrefix}-${o.id}`}
-          >
-            <input
-              type="radio"
-              name={testIdPrefix}
-              value={o.id}
-              checked={value === o.id}
-              onChange={() => onChange(o.id)}
-            />
-            <span className="model-selector__label">{o.label}</span>
-            {value === o.id && <Check size={11} className="model-selector__check" />}
-          </label>
-        </li>
-      ))}
-    </ul>
   );
 }

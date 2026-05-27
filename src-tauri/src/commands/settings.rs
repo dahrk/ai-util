@@ -21,6 +21,11 @@ pub struct AppSettings {
     pub enabled_actions: Vec<String>,
     #[serde(default)]
     pub onboarding_complete: bool,
+    /// Developer toggle: when on, the floating panel doesn't auto-hide on
+    /// blur and can be dragged. Useful for visually inspecting the panel
+    /// without it disappearing.
+    #[serde(default)]
+    pub dev_panel_persistent: bool,
 }
 
 fn default_enabled_actions() -> Vec<String> {
@@ -45,6 +50,16 @@ pub async fn set_api_key(
             "openrouter" => s.openrouter_key = value,
             other => return Err(format!("unknown provider: {other}")),
         }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_dev_panel_persistent(app: AppHandle, value: bool) -> Result<AppSettings, String> {
+    crate::settings::mutate(&app, move |s| {
+        s.dev_panel_persistent = value;
         Ok(())
     })
     .await
@@ -146,8 +161,10 @@ pub struct ValidationResult {
     pub message: Option<String>,
 }
 
-/// Validate an API key by making a minimal completion request to the
-/// provider. The "tiny test request" pattern: 1-token max, deterministic.
+/// Validate an API key by listing the provider's models. This proves the
+/// key authenticates against the inference API without consuming tokens or
+/// caring whether any particular model id is still deployed (the historical
+/// "tiny completion" pattern 404'd when a default model rotated out).
 #[tauri::command]
 pub async fn validate_api_key(provider: String, key: String) -> Result<ValidationResult, String> {
     let provider_kind = match provider.as_str() {
@@ -164,47 +181,47 @@ pub async fn validate_api_key(provider: String, key: String) -> Result<Validatio
         });
     }
 
-    let url = provider_kind.url();
-    let model = provider_kind.default_model();
-    let body = serde_json::json!({
-        "model": model,
-        "messages": [{"role": "user", "content": "ping"}],
-        "stream": false,
-        "max_tokens": 1,
-        "temperature": 0.0,
-    });
+    use crate::llm::provider_impl::{provider_for, ProviderError};
+    let result = provider_for(provider_kind)
+        .fetch_models(crate::llm::gateway::client(), &key, None)
+        .await;
 
-    let res = crate::llm::gateway::client()
-        .post(url)
-        .bearer_auth(&key)
-        .header("HTTP-Referer", "https://github.com/anthropics/claude-code")
-        .header("X-Title", "AI Text Actions")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("network: {e}"))?;
-
-    let status = res.status();
-    if status.is_success() {
-        Ok(ValidationResult {
+    Ok(match result {
+        Ok(_) => ValidationResult {
             ok: true,
-            status: Some(status.as_u16()),
+            status: Some(200),
             message: None,
-        })
-    } else {
-        let snippet: String = res
-            .text()
-            .await
-            .unwrap_or_default()
-            .chars()
-            .take(200)
-            .collect();
-        Ok(ValidationResult {
+        },
+        Err(ProviderError::Unauthorized(body)) => ValidationResult {
             ok: false,
-            status: Some(status.as_u16()),
-            message: Some(snippet),
-        })
-    }
+            status: Some(401),
+            message: Some(truncate(body, 200)),
+        },
+        Err(ProviderError::RateLimited(body)) => ValidationResult {
+            ok: false,
+            status: Some(429),
+            message: Some(truncate(body, 200)),
+        },
+        Err(ProviderError::BadRequest(msg)) => ValidationResult {
+            ok: false,
+            status: Some(400),
+            message: Some(truncate(msg, 200)),
+        },
+        Err(ProviderError::ServerError(msg)) => ValidationResult {
+            ok: false,
+            status: Some(500),
+            message: Some(truncate(msg, 200)),
+        },
+        Err(ProviderError::Network(msg)) | Err(ProviderError::Malformed(msg)) => ValidationResult {
+            ok: false,
+            status: None,
+            message: Some(truncate(msg, 200)),
+        },
+    })
+}
+
+fn truncate(s: String, max: usize) -> String {
+    s.chars().take(max).collect()
 }
 
 /// Probe the A11y permission by attempting a selection capture and inspecting

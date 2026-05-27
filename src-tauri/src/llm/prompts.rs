@@ -86,6 +86,18 @@ pub fn build_messages(action: Action, text: &str) -> Vec<Message> {
     build_messages_with_override(action, text, None)
 }
 
+/// Per-action output cap. Bounds TTFT-adjacent total latency and prevents
+/// the model from ignoring the "2–3 sentences" framing and going long.
+/// `text_chars` is the input length (used by Edit, which scales with input).
+pub fn max_tokens_for(action: Action, text_chars: usize) -> u32 {
+    match action {
+        Action::Summarize => 200,
+        Action::Edit => ((text_chars / 3) as u32).clamp(120, 600),
+        Action::Elaborate => 600,
+        Action::Research => 400,
+    }
+}
+
 /// Build the chat messages, optionally substituting a user-supplied template
 /// for the user message. The template can include `{text}` which is replaced
 /// with the captured selection.
@@ -178,5 +190,23 @@ mod tests {
             assert_eq!(Action::from_str(action.as_key()).unwrap(), action);
         }
         assert!(Action::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn max_tokens_for_flat_actions_are_fixed() {
+        assert_eq!(max_tokens_for(Action::Summarize, 1), 200);
+        assert_eq!(max_tokens_for(Action::Summarize, 100_000), 200);
+        assert_eq!(max_tokens_for(Action::Elaborate, 50), 600);
+        assert_eq!(max_tokens_for(Action::Research, 50), 400);
+    }
+
+    #[test]
+    fn max_tokens_for_edit_scales_with_input_and_clamps() {
+        // Very short input clamps up to the floor.
+        assert_eq!(max_tokens_for(Action::Edit, 10), 120);
+        // Mid-length input scales by 1/3.
+        assert_eq!(max_tokens_for(Action::Edit, 900), 300);
+        // Long input clamps to the ceiling.
+        assert_eq!(max_tokens_for(Action::Edit, 10_000), 600);
     }
 }

@@ -1,10 +1,18 @@
+/* Outer fills the (resizable) settings window and owns scroll. The inner
+ * wrapper enforces the readable 680px column. Putting the bg on .settings
+ * (not .settings__inner) means resizing wider keeps the dark surface
+ * edge-to-edge instead of revealing the white NSWindow chrome behind it. */
 .settings {
-  padding: 24px 28px 32px;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--color-bg-solid);
+  user-select: none;
+}
+
+.settings__inner {
   max-width: 680px;
   margin: 0 auto;
-  user-select: none;
-  background: var(--color-bg-solid);
-  min-height: 100vh;
+  padding: 24px 28px 32px;
 }
 
 .settings__loading {
@@ -85,6 +93,32 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.settings__checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.settings__checkbox-row input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.settings__checkbox-row strong {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.settings__checkbox-row small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .settings__action {
