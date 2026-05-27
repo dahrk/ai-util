@@ -191,6 +191,21 @@ Not yet done; in rough priority order:
 - Real Windows implementation (`platform/windows/*.rs` stubs in place).
 - Code signing + notarization on macOS; MSI bundle on Windows.
 - System-keychain (`keyring`) storage for API keys (replaces plaintext JSON).
+- **Adaptive output formatting** — classify the selection (code, shell,
+  JSON, prose, …) and inject a format directive into the prompt so
+  results come back fenced when they should be and as plain text when
+  they shouldn't. Includes an Auto / Code / Prose / Raw mode selector in
+  the Playground. Specced in
+  [`docs/specs/adaptive-formatting.md`](docs/specs/adaptive-formatting.md).
+- **Quick Command (beta)** — when the hotkey fires with nothing
+  selected, the panel today shows a "Select some text first" card.
+  The beta turns that into an inline input box where you type a prompt
+  ("write a git commit message for staged changes", "translate to
+  French", …) and the response streams back through the same panel
+  pipeline. Gated on a default-on `quick_command_enabled` setting and
+  marked as **Beta** in-app — shape of the prompt/UI may change.
+  Specced in
+  [`docs/specs/quick-command-beta.md`](docs/specs/quick-command-beta.md).
 - Custom user-defined actions.
 - See `IMPLEMENTATION_PLAN.md` § "What's out of scope for v1" for the broader list.
 

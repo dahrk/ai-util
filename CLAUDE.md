@@ -15,6 +15,50 @@ A Tauri 2 + React 18 + TypeScript desktop app that captures text on a global hot
 | `DESIGN_BRIEF.md` | UX truth | Wins for visual/interaction questions |
 | `DESIGN_NOTES.md` | Visual system, error registry, teammate comments from the Claude Design hand-off | Wins for pixel-level visual details |
 | `design-reference/project/panel.jsx` | Reference prototype — the visual contract for the floating panel and all five states | Recreate pixel-perfect, don't import |
+| `docs/specs/dev-mode-and-panel-persist.md` | Specced: Developer settings section + "Keep panel open after action" toggle | Wins for those scopes |
+| `docs/specs/adaptive-formatting.md` | Specced (not yet implemented): adaptive output formatting — classify selection, inject a format directive into the prompt, optional `RichTextProse` override per frontmost app | Wins for output-formatting questions |
+| `docs/specs/quick-command-beta.md` | Specced (beta, not yet implemented): empty-selection Quick Command input — type a prompt when no text is selected, stream the response through the existing panel pipeline | Wins for empty-selection behavior and the `quick_command_enabled` setting |
+
+### Quick Command (beta — specced, not implemented)
+
+When the hotkey fires with no text selected, the panel today renders a
+dead-end `EmptySelection` card. The spec at
+[`docs/specs/quick-command-beta.md`](docs/specs/quick-command-beta.md)
+replaces that card (behind a default-on `quick_command_enabled` setting)
+with a compact inline input the user can type a prompt into; the response
+streams through the existing `StreamingView` / `ResultView` pipeline.
+
+Key design decisions pinned in the spec:
+
+- Beta-marked: a `<BetaChip />` on the QuickCommand header and on the
+  Settings toggle; default-on but documented as subject to change.
+- Separate Tauri command `run_quick_command(prompt, target)` instead of
+  overloading `run_completion` — the action enum and "text-is-selection"
+  framing don't apply.
+- New `QUICK_COMMAND_SYSTEM` prompt in `llm/prompts.rs`; the user's typed
+  input is the full user message (no `{text}` interpolation, no
+  OS/app-context prepending in v1).
+- `PanelState` refactored so `streaming`/`result`/`error` carry a
+  `mode: CompletionMode` discriminator (`"action"` vs `"quick"`). `back()`
+  from a quick-mode result returns to the QuickCommand view with the
+  typed prompt preserved; `retry()` re-submits the same prompt.
+- Single-turn only in v1: no conversation history, clipboard injection,
+  or file context.
+- Shim parity: `__TEST_QUICK_COMMAND__` recorder so Playwright can assert
+  on submitted prompts; one new `quick-command.spec.ts` + three live
+  cases.
+
+### Adaptive formatting (specced, not implemented)
+
+Classifies the selection (Code / Shell / JSON / XML / Markdown / Prose / Mixed)
+and appends a format directive to the system message in
+`src-tauri/src/llm/prompts.rs`. Gated on a new `adaptive_formatting`
+setting (default true). The Playground gets an Auto/Code/Prose/Raw
+format-mode selector; the panel's `ResultView` shows a "detected format"
+chip when `dev_panel_persistent` is on. App-based detection (reading the
+frontmost bundle ID via the existing `selection.rs::frontmost_app_name()`
+stub) is a staged follow-up. See `docs/specs/adaptive-formatting.md` for
+the full plan.
 
 ## Repo layout (key files)
 

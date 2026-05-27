@@ -534,3 +534,120 @@ persistent-panel work (see
 [`docs/specs/dev-mode-and-panel-persist.md`](../../docs/specs/dev-mode-and-panel-persist.md))
 without manual smoke. The S4–S11 batch is the contract-pinning layer
 that pays off most when agents start refactoring the gateway.
+
+---
+
+## Quick Command (beta — specced, not implemented)
+
+Coverage items added in advance of
+[`docs/specs/quick-command-beta.md`](../../docs/specs/quick-command-beta.md)
+landing. Each row maps to a scenario the spec already enumerates; these
+rows let an implementer scan one document for the test scaffolding
+instead of two.
+
+### Q1. Empty selection + flag on → QuickCommand view renders *(A-tier)*
+- **Target:** new `tests/e2e/quick-command.spec.ts`.
+- **Why:** Pins the new branch in `Panel.tsx` that calls
+  `startQuickCommand()` instead of `setSelection(emptySelection)`.
+  Without this, a future refactor could silently revert to the
+  EmptySelection card and no test fails.
+- **Sketch:** Seed `quick_command_enabled: true`,
+  `fireworks_key: "fw_test"`; `emitSelection(page, "")`; assert the
+  `data-testid="quick-command-input"` textarea is visible, focused, and
+  empty; assert the Beta chip is present.
+
+### Q2. Submit → stream → result via mocked tokens *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Covers the new `run_quick_command` shim path end-to-end and
+  asserts the `__TEST_QUICK_COMMAND__` recorder captures the typed
+  prompt verbatim.
+- **Sketch:** `setCompletionOverride({ kind: "stream", tokens: [...] })`;
+  type a prompt; press Enter; assert `result-text` and
+  `getQuickCommandSubmissions(page).at(-1).prompt` matches what was typed.
+
+### Q3. Retry re-streams the same prompt *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins that `retry()` from a quick-mode result re-invokes
+  `runQuickCommand(mode.prompt)`, not `runCompletion(...)`.
+- **Sketch:** From the result view click `result-retry`; assert a
+  second entry in the recorder with the same prompt.
+
+### Q4. Back from result returns to QuickCommand with prompt preserved *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins the `CompletionMode.quick.prompt` round-trip through
+  the store's `back()` action — the "type → submit → back → type
+  more" loop is the whole UX argument for the feature.
+- **Sketch:** Submit `"Hello?"`; from result click Back; assert the
+  textarea is visible with value `"Hello?"`.
+
+### Q5. Flag off falls back to EmptySelection *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins the migration/compatibility promise from the spec: an
+  off toggle restores the *exact* pre-feature behaviour.
+- **Sketch:** Seed `quick_command_enabled: false`;
+  `emitSelection(page, "")`; assert the existing
+  "Select some text first" card is visible and the QuickCommand
+  textarea is absent.
+
+### Q6. Invalid-key error path → ErrorView with `invalid-key` kind *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Confirms quick-command failures flow through the same
+  `errorKinds.ts` classifier — no parallel error pipeline accidentally
+  emerges.
+- **Sketch:** `setCompletionOverride({ kind: "error", fireworks_error:
+  "HTTP 401 Unauthorized", openrouter_error: null })`; submit; assert
+  `[data-error-kind="invalid-key"]`.
+
+### Q7. Empty-prompt Submit is a no-op *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins both the UI guard (button disabled) and the absence of
+  any recorder entry. Without this, a future refactor could
+  unconditionally invoke `runQuickCommand("")` and rely solely on the
+  backend's defense-in-depth guard.
+- **Sketch:** Open QuickCommand view; assert Submit is disabled;
+  press Enter; assert `__TEST_QUICK_COMMAND__` is empty and the panel
+  is still in the `quick_command` state.
+
+### Q8. Live Fireworks: `"What is 2+2?"` → result contains `4` *(B-tier; live)*
+- **Target:** new `tests/e2e/quick-command-live.spec.ts` (or appended
+  to `playground.spec.ts`).
+- **Why:** Same role as the playground live smoke — guards against SSE
+  parsing, prompt assembly, and cancellation regressions for the
+  quick-command path specifically.
+- **Sketch:** Skip if `FIREWORKS_API_KEY` unset; submit
+  `"What is 2+2?"`; expect `result-text` to match `/\b4\b/` within a
+  generous timeout.
+
+### Q9. Live Fireworks: cancel mid-stream *(B-tier; live)*
+- **Target:** same file as Q8.
+- **Why:** Pins that `cancelCompletion()` works for the new command and
+  no `completion_done` arrives after.
+- **Sketch:** Submit a long-form prompt; once `StreamingView` is
+  visible, call `cancelCompletion()` via the shim hook; assert no
+  result view appears within ~3s and no error is classified.
+
+### Q10. Live Fireworks: context-overflow → `context-overflow` error *(B-tier; live)*
+- **Target:** same file as Q8.
+- **Why:** End-to-end coverage of the documented overflow path, which
+  is *especially* relevant for quick command — a user can type a
+  multi-megabyte clipboard paste in seconds.
+- **Sketch:** Submit ~200,000 chars of lorem ipsum; assert
+  `[data-error-kind="context-overflow"]`; assert the primary button is
+  labeled *"Switch model"*.
+
+### Q11. `quick_command_enabled` persists across reload *(A-tier)*
+- **Target:** extend `settings.spec.ts`.
+- **Why:** Same regression class as A8 — the toggle ships into the
+  settings store and an agent could break the persistence path
+  independently of the runtime behaviour.
+- **Sketch:** Mutate via `setQuickCommandEnabled(false)`,
+  `page.reload()`, re-read; assert the value sticks.
+
+### Q12. Quick-mode ResultView hides *Show original* and swaps the primary action *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins that the mode-aware copy lands: there is no selection
+  to "show", and the primary action is *Copy result*, not *Replace
+  selection*.
+- **Sketch:** After a successful quick-mode result, assert the
+  `Show original` toggle is absent and the primary button's label
+  contains `Copy`, not `Replace`.
