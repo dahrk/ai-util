@@ -25,28 +25,49 @@ When the hotkey fires with no text selected, the panel today renders a
 dead-end `EmptySelection` card. The spec at
 [`docs/specs/quick-command-beta.md`](docs/specs/quick-command-beta.md)
 replaces that card (behind a default-on `quick_command_enabled` setting)
-with a compact inline input the user can type a prompt into; the response
-streams through the existing `StreamingView` / `ResultView` pipeline.
+with a **Cursor Cmd+K-style inline command bar**: a compact single-line
+input that grows as the user types, expands downward as tokens stream
+inline below it, and dismisses on Esc. There is no view transition —
+the input stays visible the entire streaming lifecycle.
 
 Key design decisions pinned in the spec:
 
-- Beta-marked: a `<BetaChip />` on the QuickCommand header and on the
-  Settings toggle; default-on but documented as subject to change.
+- **Inline floating bar, not a destination view.** Streaming output
+  appears immediately below the input in the same surface; the panel
+  webview resizes via a new `resize_panel(width, height)` command that
+  re-uses the existing `window/panel.rs` edge-flip logic.
+- **`@`-references for context.** v1 supports `@clipboard` (inlines the
+  current clipboard text) and `@app` (inlines the frontmost app name —
+  already captured by `selection.rs::frontmost_app_name()`). Expansion
+  is a pure frontend function (`src/lib/quickCommand.ts`); the backend
+  receives the already-expanded string.
+- **Action chips below the input** (`Explain`, `Translate`,
+  `Brainstorm`, `Improve`, plus `@clipboard` / `@app` insertion chips).
+  Chips insert prompt templates with `{cursor}` placeholder; they do
+  not auto-submit. The four selection-driven actions
+  (Summarize/Edit/Elaborate/Research) deliberately are NOT in the chip
+  set — they require a selection.
+- Beta-marked: a `<BetaChip />` on the bar and on the Settings toggle;
+  default-on but documented as subject to change.
 - Separate Tauri command `run_quick_command(prompt, target)` instead of
-  overloading `run_completion` — the action enum and "text-is-selection"
-  framing don't apply.
-- New `QUICK_COMMAND_SYSTEM` prompt in `llm/prompts.rs`; the user's typed
-  input is the full user message (no `{text}` interpolation, no
-  OS/app-context prepending in v1).
+  overloading `run_completion`. New `QUICK_COMMAND_SYSTEM` prompt in
+  `llm/prompts.rs`; the user's already-expanded input is the full user
+  message (no `{text}` interpolation).
 - `PanelState` refactored so `streaming`/`result`/`error` carry a
-  `mode: CompletionMode` discriminator (`"action"` vs `"quick"`). `back()`
-  from a quick-mode result returns to the QuickCommand view with the
-  typed prompt preserved; `retry()` re-submits the same prompt.
-- Single-turn only in v1: no conversation history, clipboard injection,
-  or file context.
-- Shim parity: `__TEST_QUICK_COMMAND__` recorder so Playwright can assert
-  on submitted prompts; one new `quick-command.spec.ts` + three live
-  cases.
+  `mode: CompletionMode` discriminator (`"action"` vs `"quick"`). For
+  quick mode, the renderer stays on `QuickCommandBar` across all
+  sub-states; the input element never unmounts. **`expandedPrompt` is
+  frozen at submit time** — `Retry` re-submits the original expansion,
+  not a fresh one against a now-different clipboard.
+- No diff/preview step — the streamed output is itself the preview.
+  Cursor's diff applies to code edits; Quick Command produces new text,
+  so there's no "before."
+- Single-turn only in v1: no conversation history, no `@file`, no
+  Tab-completion of prompts.
+- Shim parity: `__TEST_QUICK_COMMAND__` recorder, `__TEST_RESIZES__`
+  recorder, `__TEST__.setSourceApp(name)` hook so Playwright can pin
+  `@`-expansion and panel-resize behavior; 13 mocked + 4 live e2e
+  scenarios.
 
 ### Adaptive formatting (specced, not implemented)
 

@@ -545,6 +545,13 @@ landing. Each row maps to a scenario the spec already enumerates; these
 rows let an implementer scan one document for the test scaffolding
 instead of two.
 
+The spec models the surface on Cursor's Cmd+K — an **inline floating
+command bar** with `@`-references for context and action chips for
+prompt templates. Coverage focuses on the contracts that distinguish
+this from "just another panel view": *the input element never
+unmounts*, *streaming renders below the input in the same surface*,
+and *`expandedPrompt` is frozen at submit time*.
+
 ### Q1. Empty selection + flag on → QuickCommand view renders *(A-tier)*
 - **Target:** new `tests/e2e/quick-command.spec.ts`.
 - **Why:** Pins the new branch in `Panel.tsx` that calls
@@ -556,29 +563,39 @@ instead of two.
   `data-testid="quick-command-input"` textarea is visible, focused, and
   empty; assert the Beta chip is present.
 
-### Q2. Submit → stream → result via mocked tokens *(A-tier)*
+### Q2. Submit → inline streaming → inline result, no view transition *(A-tier)*
 - **Target:** `quick-command.spec.ts`.
-- **Why:** Covers the new `run_quick_command` shim path end-to-end and
-  asserts the `__TEST_QUICK_COMMAND__` recorder captures the typed
-  prompt verbatim.
+- **Why:** Pins the load-bearing contract that distinguishes the
+  Cursor-style surface from the existing one — *the input element
+  never unmounts* across the streaming lifecycle, and `StreamingView` /
+  `ResultView` are NOT rendered for quick mode.
 - **Sketch:** `setCompletionOverride({ kind: "stream", tokens: [...] })`;
-  type a prompt; press Enter; assert `result-text` and
-  `getQuickCommandSubmissions(page).at(-1).prompt` matches what was typed.
+  type a prompt; press Enter; capture the textarea's DOM handle before
+  submit, re-query after; assert it's the same element and still focused.
+  Assert `getQuickCommandSubmissions(page).at(-1).prompt` matches; assert
+  `StreamingView` / `ResultView` selectors are absent.
 
-### Q3. Retry re-streams the same prompt *(A-tier)*
+### Q3. Retry re-sends the *frozen* expanded prompt *(A-tier)*
 - **Target:** `quick-command.spec.ts`.
-- **Why:** Pins that `retry()` from a quick-mode result re-invokes
-  `runQuickCommand(mode.prompt)`, not `runCompletion(...)`.
-- **Sketch:** From the result view click `result-retry`; assert a
-  second entry in the recorder with the same prompt.
+- **Why:** Pins the spec's "expansion is captured at submit time, not
+  re-computed on retry" rule. Without this, a user who copies new
+  clipboard content between submit and retry would silently get a
+  different result.
+- **Sketch:** `__TEST__.setClipboard("ORIGINAL")`; submit
+  `@clipboard summarize`; once result arrives,
+  `__TEST__.setClipboard("DIFFERENT")`; click Retry; assert the second
+  recorder entry equals the first verbatim.
 
-### Q4. Back from result returns to QuickCommand with prompt preserved *(A-tier)*
+### Q4. Back from result returns to QuickCommand with rawPrompt preserved *(A-tier)*
 - **Target:** `quick-command.spec.ts`.
-- **Why:** Pins the `CompletionMode.quick.prompt` round-trip through
-  the store's `back()` action — the "type → submit → back → type
-  more" loop is the whole UX argument for the feature.
-- **Sketch:** Submit `"Hello?"`; from result click Back; assert the
-  textarea is visible with value `"Hello?"`.
+- **Why:** Pins the `CompletionMode.quick.rawPrompt` round-trip
+  through the store's `back()` action — the "type → submit → back →
+  refine → submit" loop is the whole UX argument for the feature.
+  `rawPrompt` (not `expandedPrompt`) is what the user sees, so the
+  textarea should show the literal `@clipboard` token if they typed it,
+  not the inlined contents.
+- **Sketch:** Submit `"@clipboard summarize"`; from result click Back;
+  assert the textarea value is literally `"@clipboard summarize"`.
 
 ### Q5. Flag off falls back to EmptySelection *(A-tier)*
 - **Target:** `quick-command.spec.ts`.
@@ -643,11 +660,67 @@ instead of two.
 - **Sketch:** Mutate via `setQuickCommandEnabled(false)`,
   `page.reload()`, re-read; assert the value sticks.
 
-### Q12. Quick-mode ResultView hides *Show original* and swaps the primary action *(A-tier)*
+### Q12. Quick-mode action row exposes Copy + Replace-at-cursor + Retry *(A-tier)*
 - **Target:** `quick-command.spec.ts`.
-- **Why:** Pins that the mode-aware copy lands: there is no selection
-  to "show", and the primary action is *Copy result*, not *Replace
-  selection*.
+- **Why:** Pins the mode-aware action row in the spec's §6: no
+  *Show original* toggle (there is no selection to show), and the
+  primary action is *Replace at cursor* (paste at the caret in the
+  source app) — not *Replace selection*.
 - **Sketch:** After a successful quick-mode result, assert the
-  `Show original` toggle is absent and the primary button's label
-  contains `Copy`, not `Replace`.
+  *Show original* toggle is absent and the primary button's label
+  contains `Replace at cursor`.
+
+### Q13. `@clipboard` and `@app` reference expansion *(A-tier)*
+- **Target:** `quick-command.spec.ts` + a vitest `quickCommand.test.ts`.
+- **Why:** The reference parser is the discriminator between "just a
+  text input" and a context-aware command bar. A regression in the
+  regex (e.g. swallowing `email@example.com`) would silently produce
+  wrong prompts.
+- **Sketch (e2e):** `__TEST__.setClipboard("hello world")`;
+  `__TEST__.setSourceApp("VS Code")`; submit `@clipboard @app
+  describe`; assert the recorder's last `prompt` contains both
+  `"hello world"` and `"VS Code"` and contains neither literal
+  `@clipboard` nor literal `@app`. **Vitest:** table-drive
+  `expandReferences` over: single ref, both refs, no refs,
+  email-with-`@` (left untouched), `@clipboard` with empty clipboard
+  (expands to sentinel), `@unknown` (left untouched).
+
+### Q14. Action chip inserts a template without auto-submitting *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** The chip row in the spec is *suggestion*, not action.
+  Auto-submitting on chip click would surprise the user who wanted
+  to refine the template first.
+- **Sketch:** Open Quick Command; click the `Explain` chip; assert
+  the textarea value is `"Explain: "`, focus is back on the textarea,
+  the recorder is empty, and the state is still `quick_command`.
+
+### Q15. Tab cycles chip row, Enter on chip inserts template *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Keyboard-first navigation is a stated UX goal; mouse-only
+  chips would break that promise.
+- **Sketch:** From the focused textarea press Tab; assert first chip
+  has focus. Press Tab; second chip focused. Press Enter; assert that
+  chip's template inserted into the textarea.
+
+### Q16. Panel resizes as streaming output grows *(B-tier)*
+- **Target:** `quick-command.spec.ts` + a `resize_panel` Rust unit.
+- **Why:** The new `resize_panel(width, height)` command is the
+  load-bearing piece that lets the panel grow inline. Without
+  coverage, a refactor that drops the ResizeObserver wire-up would
+  visibly truncate streams.
+- **Sketch (e2e):** Submit a 10-token stream of long text; capture
+  the `__TEST_RESIZES__` recorder; assert at least one entry has a
+  height greater than the idle baseline. **Cargo:** unit test on
+  `compute_position` proving a post-grow re-call still edge-flips
+  when the new height would push the panel off-screen.
+
+### Q17. Esc during streaming cancels and returns to bar *(A-tier)*
+- **Target:** `quick-command.spec.ts`.
+- **Why:** Pins that Esc has *two* meanings depending on state —
+  cancel-mid-stream vs dismiss-panel — and that cancelling leaves
+  the user back at the populated input rather than dismissing the
+  whole panel.
+- **Sketch:** Override `tokenIntervalMs: 50`, 20 tokens; submit
+  `"Hello?"`; mid-stream press Esc; assert state returns to
+  `quick_command` with `rawPrompt === "Hello?"`; assert no
+  `completion_done` event fired in the recorder.

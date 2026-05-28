@@ -197,14 +197,16 @@ Not yet done; in rough priority order:
   they shouldn't. Includes an Auto / Code / Prose / Raw mode selector in
   the Playground. Specced in
   [`docs/specs/adaptive-formatting.md`](docs/specs/adaptive-formatting.md).
-- **Quick Command (beta)** — when the hotkey fires with nothing
-  selected, the panel today shows a "Select some text first" card.
-  The beta turns that into an inline input box where you type a prompt
-  ("write a git commit message for staged changes", "translate to
-  French", …) and the response streams back through the same panel
-  pipeline. Gated on a default-on `quick_command_enabled` setting and
-  marked as **Beta** in-app — shape of the prompt/UI may change.
-  Specced in
+- **Quick Command (beta)** — Cursor Cmd+K-style inline command bar
+  for the empty-selection case. When the hotkey fires with nothing
+  selected, the panel becomes a single-line input that grows as you
+  type; the response streams **inline below the input** without
+  navigating to a separate view. Supports `@clipboard` and `@app`
+  references to inline context into the prompt, plus a row of
+  one-tap action chips (`Explain`, `Translate`, `Brainstorm`,
+  `Improve`). Gated on a default-on `quick_command_enabled` setting
+  and marked as **Beta** in-app — shape of the input, `@`-refs, and
+  chip set may change. Specced in
   [`docs/specs/quick-command-beta.md`](docs/specs/quick-command-beta.md).
 - Custom user-defined actions.
 - See `IMPLEMENTATION_PLAN.md` § "What's out of scope for v1" for the broader list.
