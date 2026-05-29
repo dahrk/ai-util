@@ -76,7 +76,7 @@ export async function streamCompletion(args: RunArgs): Promise<string> {
 
   // Streaming SSE framing: events separated by blank lines (\n\n). A
   // single event may span multiple chunks, so we accumulate and split.
-  while (true) {
+  for (;;) {
     if (args.signal.aborted) {
       try {
         await reader.cancel();

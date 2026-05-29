@@ -14,7 +14,7 @@ test.describe.configure({ mode: "serial" });
 const SHORT_INPUT =
   "The capybara is the largest living rodent, native to South America.";
 
-test.beforeEach(({}, testInfo) => {
+test.beforeEach((_, testInfo) => {
   if (!FIREWORKS_KEY) testInfo.skip(true, "FIREWORKS_API_KEY not set");
 });
 

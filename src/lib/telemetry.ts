@@ -94,6 +94,10 @@ export function subscribe(
   let state = freshState();
   let buf = emptyBuffer();
   const unlisteners: UnlistenFn[] = [];
+  // `listen` is async; if the caller unsubscribes before the promises resolve,
+  // we must still detach once they do — otherwise the listeners leak. Track a
+  // cancelled flag (same pattern as `useTauriEvent`).
+  let cancelled = false;
   const handle = (event: "hotkey" | "visible" | "first_token" | "done") => (payload: unknown) => {
     const ts =
       typeof payload === "number"
@@ -113,7 +117,13 @@ export function subscribe(
     listen<number>("telemetry_panel_visible", (e) => handle("visible")(e.payload)),
     listen<number>("telemetry_first_token", (e) => handle("first_token")(e.payload)),
     listen<number>("telemetry_completion_done", (e) => handle("done")(e.payload)),
-  ]).then((fns) => unlisteners.push(...fns));
+  ]).then((fns) => {
+    if (cancelled) fns.forEach((u) => u());
+    else unlisteners.push(...fns);
+  });
 
-  return () => unlisteners.forEach((u) => u());
+  return () => {
+    cancelled = true;
+    unlisteners.forEach((u) => u());
+  };
 }

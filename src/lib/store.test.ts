@@ -141,7 +141,7 @@ describe("usePanelStore", () => {
     if (s.kind === "picking") expect(s.selection).toEqual(SELECTION);
   });
 
-  it("back from error with no selection falls to idle", () => {
+  it("back from error returns to picking when a selection is present", () => {
     usePanelStore.getState().setSelection(SELECTION);
     usePanelStore.getState().startAction("summarize", "fireworks");
     usePanelStore
@@ -149,6 +149,22 @@ describe("usePanelStore", () => {
       .fail({ fireworks_error: "x", openrouter_error: "y" });
     usePanelStore.getState().back();
     expect(usePanelStore.getState().state.kind).toBe("picking");
+  });
+
+  it("back from error with no selection falls to idle", () => {
+    // The null-selection error branch isn't reachable through the public
+    // transitions (fail always carries the selection), so construct it
+    // directly to cover back()'s idle fallback.
+    usePanelStore.setState({
+      state: {
+        kind: "error",
+        selection: null,
+        action: null,
+        error: { fireworks_error: "x", openrouter_error: "y" },
+      },
+    });
+    usePanelStore.getState().back();
+    expect(usePanelStore.getState().state.kind).toBe("idle");
   });
 
   it("reset returns to idle from any state", () => {

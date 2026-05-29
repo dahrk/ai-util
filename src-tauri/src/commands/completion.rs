@@ -79,16 +79,20 @@ pub async fn run_completion(
         return Ok(());
     }
 
-    // Install a fresh cancel token, replacing any prior in-flight one.
+    // Install a fresh cancel token, replacing any prior in-flight one. The
+    // generation stamp lets the spawned task below know whether it still owns
+    // the slot when it finishes (a later run may have superseded it).
     let cancel = CancellationToken::new();
-    {
+    let my_gen = {
         let state = app.state::<AppState>();
+        let my_gen = state.completion_gen.fetch_add(1, Ordering::SeqCst);
         let mut slot = state.cancel_token.lock();
-        if let Some(prev) = slot.take() {
+        if let Some((_, prev)) = slot.take() {
             prev.cancel();
         }
-        *slot = Some(cancel.clone());
-    }
+        *slot = Some((my_gen, cancel.clone()));
+        my_gen
+    };
 
     let first_token_emitted = Arc::new(AtomicBool::new(false));
     let app_for_token = app.clone();
@@ -128,9 +132,14 @@ pub async fn run_completion(
         .await;
 
         {
+            // Only clear the slot if we still own it. A newer run may have
+            // already replaced our token; clearing it would leave that run
+            // un-cancellable.
             let state = app_for_task.state::<AppState>();
             let mut slot = state.cancel_token.lock();
-            *slot = None;
+            if matches!(*slot, Some((gen, _)) if gen == my_gen) {
+                *slot = None;
+            }
         }
 
         match result {
@@ -176,7 +185,7 @@ pub async fn run_completion(
 pub async fn cancel_completion(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
     let mut slot = state.cancel_token.lock();
-    if let Some(token) = slot.take() {
+    if let Some((_, token)) = slot.take() {
         token.cancel();
     }
     Ok(())

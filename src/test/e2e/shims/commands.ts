@@ -132,16 +132,9 @@ async function fetch_models({ provider }: Args) {
       label: m.label,
     }));
   }
-  try {
-    return await fetchModelsLive(
-      provider as "fireworks" | "openrouter",
-      key,
-    );
-  } catch (e) {
-    // Frontend treats a thrown error as "fall back to static" — preserve
-    // that path so the offline UX is exercised under flaky network.
-    throw e;
-  }
+  // A thrown error propagates to the frontend, which falls back to the static
+  // list — preserving that path exercises the offline UX under flaky network.
+  return await fetchModelsLive(provider as "fireworks" | "openrouter", key);
 }
 
 async function probe_accessibility(): Promise<boolean> {

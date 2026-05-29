@@ -8,8 +8,7 @@ use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize};
 
 use crate::platform::cursor::CursorPos;
 use crate::platform::PLATFORM;
-
-const PANEL_LABEL: &str = "panel";
+use crate::util::PANEL_LABEL;
 
 /// Default mouse-to-panel offset (the panel's top-left appears slightly
 /// below and to the right of the cursor so the cursor stays visible).
